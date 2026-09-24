@@ -32,9 +32,13 @@ html, body, #root {
 }
 .fade-up { animation: fade-up 0.35s ease-out forwards; }
 
+.qr-camera-frame {
+  border: 0 !important;
+}
+
 .qr-camera-frame video {
   width: 100% !important;
-  min-height: 280px;
+  height: 100% !important;
   object-fit: cover;
 }
 

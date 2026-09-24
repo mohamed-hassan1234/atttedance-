@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const StudentQrToken = require('../models/StudentQrToken');
+const Student = require('../models/Student');
 
 const generateRawToken = () => crypto.randomBytes(32).toString('hex');
 
@@ -38,4 +39,17 @@ const assignStudentQrToken = async (student, { replace = false } = {}) => {
   return student;
 };
 
-module.exports = { assignStudentQrToken };
+// Resolves a QR token to its student. Returns { student, status } where status is
+// 'ok' | 'unknown' | 'deactivated'. `student` is set whenever one could be found.
+const findStudentByQrToken = async (token) => {
+  const qrToken = await StudentQrToken.findOne({ token }).populate({ path: 'student', select: '+qrToken' });
+  if (!qrToken) return { student: null, status: 'unknown' };
+
+  const student = qrToken.student || await Student.findOne({ qrToken: token }).select('+qrToken');
+  if (!student) return { student: null, status: 'unknown' };
+
+  const active = qrToken.status === 'active' && student.qrStatus === 'active' && student.qrToken === token;
+  return { student, status: active ? 'ok' : 'deactivated' };
+};
+
+module.exports = { assignStudentQrToken, findStudentByQrToken };

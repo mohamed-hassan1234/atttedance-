@@ -37,12 +37,23 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: 5173,
+      // Dev only: accept requests arriving through a Cloudflare Quick Tunnel
+      // (https://<random>.trycloudflare.com) for phone camera testing. Vite skips
+      // its Host check while HTTPS is on, so this only matters with VITE_HTTPS=false;
+      // then every other unknown Host header is still rejected.
+      allowedHosts: ['.trycloudflare.com'],
       https: httpsDisabled ? false : (manualHttps || true),
       proxy: {
         '/api': {
           target: 'http://localhost:5000',
           changeOrigin: true,
           secure: false,
+          // The browser only ever talks to Vite (same-origin /api). Drop the
+          // browser's Origin header on the server-to-server hop so Express's strict
+          // CLIENT_URL CORS list does not need every random tunnel URL added.
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'));
+          },
         },
       },
     },

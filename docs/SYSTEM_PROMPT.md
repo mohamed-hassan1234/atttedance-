@@ -361,3 +361,12 @@ VITE_API_BASE_URL=http://localhost:5000/api
 - Preserve the `{ success, data, message }` response envelope on every new
   API endpoint so the frontend's existing error-handling patterns keep
   working without special-casing.
+
+## 13. QR attendance scanning
+
+- Student QR codes contain `{"type":"student_verification","token":"<64-hex>"}` — an opaque, revocable token, **not** the Student ID. `backend/src/utils/qrPayload.js` (`extractQrToken`) is the single server-side parser; `frontend/src/utils/parseStudentQr.js` mirrors it for client-side rejection and offline queueing.
+- `POST /api/qr/scan` (invigilator only) accepts `{ qrData, examId }`. With `examId` it resolves the token → student, checks the invigilator is assigned to the exam, and records attendance via `services/attendanceService.processAttendanceAttempt` (the same function used by manual entry and `/attendance/sync`). Without `examId` it is the legacy verify-only call.
+- Responses: 200 + `attendanceStatus: 'Eligible' | 'Not Eligible'` (both are recorded), 409 duplicate, 403 not assigned, 404/410 unknown/deactivated QR, 400 invalid payload.
+- Offline QR scans are queued (`qrToken` + `examId` + `clientId`) in the existing localStorage queue and revalidated by `/attendance/sync`.
+- Frontend: `components/QrAttendanceScanner.jsx` (flow/state machine), `components/QrScanner.jsx` (camera UI), `services/cameraSession.js` (camera lifecycle), `services/scanCoordinator.js` (scan lock).
+- Tests: `npm test` in `backend/` and `frontend/` (Node's built-in test runner).

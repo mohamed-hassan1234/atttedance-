@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ScanLine, Search, WifiOff, RefreshCcw, Users2, Camera, X, ArrowRight, History, CheckCircle2 } from 'lucide-react';
+import { ScanLine, Search, WifiOff, RefreshCcw, Users2, Camera, Keyboard, ArrowRight, History, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import EligibilityStamp from '../components/EligibilityStamp';
 import Badge from '../components/Badge';
-import QrScanner from '../components/QrScanner';
+import QrAttendanceScanner from '../components/QrAttendanceScanner';
 import { addToQueue, getQueue, syncQueue } from '../services/offlineQueue';
 
 const ScanAttendance = () => {
@@ -24,7 +24,7 @@ const ScanAttendance = () => {
   const [roster, setRoster] = useState([]);
   const [attendedIds, setAttendedIds] = useState(new Set());
   const [rosterLoading, setRosterLoading] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
+  const [mode, setMode] = useState('qr'); // 'qr' | 'manual'
   const [scanPreview, setScanPreview] = useState(null); // { studentId, student, scanStatus, message }
   const [previewLoading, setPreviewLoading] = useState(false);
   const [recentScans, setRecentScans] = useState([]);
@@ -74,14 +74,15 @@ const ScanAttendance = () => {
     if (!isOnline) return;
     setSyncing(true);
     try {
-      await syncQueue();
+      const { synced } = await syncQueue();
       setQueueCount(getQueue().length);
+      if (synced > 0) loadRoster(examId);
     } catch (err) {
       // Will retry automatically next time connection is confirmed
     } finally {
       setSyncing(false);
     }
-  }, [isOnline]);
+  }, [isOnline, examId, loadRoster]);
 
   useEffect(() => {
     if (isOnline && getQueue().length > 0) handleSync();
@@ -159,49 +160,23 @@ const ScanAttendance = () => {
     }
   };
 
-  const openCamera = () => {
-    setError('');
-    setResult(null);
-    setScanPreview(null);
-    setCameraOpen(true);
-  };
-
   const clearPreview = () => {
     setError('');
     setResult(null);
     setScanPreview(null);
-    setCameraOpen(false);
   };
 
-  const handleQrDecode = async (decodedText) => {
-    setCameraOpen(false);
-    setPreviewLoading(true);
-    setError('');
-    try {
-      const { data } = await api.post('/qr/scan', {
-        qrData: decodedText,
-        deviceInfo: navigator.userAgent,
-      });
-      setScanPreview({
-        studentId: data.student.studentId,
-        student: data.student,
-        scanStatus: data.scanStatus,
-        message: data.message,
-      });
-      loadRecentScans();
-    } catch (err) {
-      const data = err.response?.data;
-      setScanPreview({
-        studentId: data?.student?.studentId || '',
-        student: data?.student || null,
-        scanStatus: data?.scanStatus || 'Invalid QR',
-        message: data?.message || 'Invalid QR code. Please scan a valid student QR code.',
-      });
-      setError(data?.message || 'Invalid QR code. Please scan a valid student QR code.');
-      loadRecentScans();
-    } finally {
-      setPreviewLoading(false);
+  // Called by the QR scanner after every scan. The server has already recorded
+  // (or refused) the attendance; this only refreshes what the page displays.
+  const handleQrOutcome = ({ kind, student, queued }) => {
+    if (queued) {
+      setQueueCount(getQueue().length);
+      setSessionCount((c) => c + 1);
+    } else if (kind === 'success' || (kind === 'rejected' && student?._id)) {
+      setSessionCount((c) => c + (kind === 'success' ? 1 : 0));
+      if (student?._id) setAttendedIds((prev) => new Set(prev).add(student._id));
     }
+    loadRecentScans();
   };
 
   const confirmPreview = async () => {
@@ -221,7 +196,7 @@ const ScanAttendance = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display text-2xl text-ledger-900">Scan attendance</h1>
-          <p className="text-ledger-400 text-sm mt-1">Scan a secure student QR code, confirm identity, then record attendance when an exam is selected.</p>
+          <p className="text-ledger-400 text-sm mt-1">Choose your exam, then scan each student's QR code. Attendance is recorded and checked on the server.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="neutral"><Users2 size={13} /> {sessionCount} recorded this session</Badge>
@@ -246,7 +221,7 @@ const ScanAttendance = () => {
       )}
 
       <div className="grid lg:grid-cols-5 gap-6">
-        <div className="lg:col-span-3 bg-white rounded-2xl border border-ledger-100 shadow-card p-6 space-y-5">
+        <div className={`${mode === 'manual' ? 'lg:col-span-3' : 'lg:col-span-5 lg:max-w-2xl lg:mx-auto lg:w-full'} bg-white rounded-2xl border border-ledger-100 shadow-card p-4 sm:p-6 space-y-5`}>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-ledger-400 mb-1.5">
               Examination
@@ -270,37 +245,26 @@ const ScanAttendance = () => {
             )}
           </div>
 
-          {cameraOpen ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-semibold uppercase tracking-wide text-ledger-400">
-                  Point the camera at the student's QR code
-                </label>
-                <button
-                  onClick={() => setCameraOpen(false)}
-                  className="flex items-center gap-1 text-xs font-medium text-ledger-500 hover:text-ineligible"
-                >
-                  <X size={14} /> Cancel
-                </button>
-              </div>
-              <QrScanner
-                onScan={handleQrDecode}
-                onError={(msg) => setError(msg)}
-              />
-            </div>
-          ) : (
-            <button
-              onClick={openCamera}
-              className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-ledger-200 hover:border-seal/50 hover:bg-seal/5 text-ledger-600 font-medium text-sm py-3.5 rounded-xl transition-colors"
-            >
-              <Camera size={17} /> Open QR scanner
-            </button>
-          )}
-
-          <div className="flex items-center gap-3 text-ledger-300 text-xs">
-            <div className="h-px flex-1 bg-ledger-100" /> or type manually <div className="h-px flex-1 bg-ledger-100" />
+          <div role="tablist" aria-label="Attendance method" className="grid grid-cols-2 gap-1 rounded-xl bg-ledger-50 p-1">
+            {[['qr', 'Scan QR', Camera], ['manual', 'Enter Student ID', Keyboard]].map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={mode === key}
+                onClick={() => setMode(key)}
+                className={`flex min-h-[44px] items-center justify-center gap-2 rounded-lg text-sm font-medium transition-colors ${mode === key ? 'bg-white text-ledger-900 shadow-sm' : 'text-ledger-500 hover:text-ledger-700'}`}
+              >
+                <Icon size={16} /> {label}
+              </button>
+            ))}
           </div>
 
+          {mode === 'qr' && (
+            <QrAttendanceScanner exam={selectedExam} isOnline={isOnline} onOutcome={handleQrOutcome} />
+          )}
+
+          {mode === 'manual' && (
           <form onSubmit={handleScan} className="space-y-3">
             <label className="block text-xs font-semibold uppercase tracking-wide text-ledger-400">
               Student ID
@@ -324,6 +288,7 @@ const ScanAttendance = () => {
               </button>
             </div>
           </form>
+          )}
 
           {error && (
             <div className="bg-ineligible/10 border border-ineligible/30 text-ineligible text-sm rounded-xl px-4 py-3">
@@ -332,6 +297,7 @@ const ScanAttendance = () => {
           )}
         </div>
 
+        {mode === 'manual' && (
         <div className="lg:col-span-2 bg-white rounded-2xl border border-ledger-100 shadow-card p-6 flex flex-col items-center justify-center text-center min-h-[280px]">
           {previewLoading && (
             <p className="text-ledger-400 text-sm">Looking up student…</p>
@@ -429,6 +395,7 @@ const ScanAttendance = () => {
             </div>
           )}
         </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl border border-ledger-100 shadow-card overflow-hidden">

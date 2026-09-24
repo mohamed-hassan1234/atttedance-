@@ -1,245 +1,229 @@
-import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
-import { Camera, Loader2, Play, Square, Upload } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { CameraOff, Loader2, RefreshCw, SwitchCamera, Upload, Zap, ZapOff } from 'lucide-react';
+import { createCameraSession, explainCameraError } from '../services/cameraSession';
 
 let instanceCounter = 0;
-const BACK_CAMERA_OPTION = '';
 
-const findBackCamera = (devices = []) => (
-  devices.find((device) => /back|rear|environment/i.test(device.label || ''))
+const SCAN_CONFIG = { fps: 10, disableFlip: true };
+const BACK_CAMERA = { facingMode: 'environment' };
+const REAR_LABEL = /back|rear|environment/i;
+
+const isSecureCameraContext = () => (
+  window.isSecureContext || ['localhost', '127.0.0.1'].includes(window.location.hostname)
 );
 
-const normalizeCameraDevices = (devices = []) => (
-  devices.filter((device) => device?.id)
-);
+// Live camera QR scanner. It only reports what it decodes (`onDecode`); the parent
+// decides what to do with it and locks out repeat detections. The camera stays
+// open between students and is released when this component unmounts.
+//
+// onStatus receives { state: 'requesting-camera' | 'scanning' | 'camera-error', error? }.
+const QrScanner = ({ onDecode, onStatus, paused = false }) => {
+  const ids = useRef(null);
+  if (!ids.current) {
+    instanceCounter += 1;
+    ids.current = { view: `qr-view-${instanceCounter}`, file: `qr-file-${instanceCounter}` };
+  }
+  const containerRef = useRef(null);
+  const onDecodeRef = useRef(onDecode);
+  const onStatusRef = useRef(onStatus);
+  onDecodeRef.current = onDecode;
+  onStatusRef.current = onStatus;
 
-const QrScanner = ({ onScan, onError }) => {
-  const elementId = useRef(`qr-scanner-${++instanceCounter}`).current;
-  const scannerRef = useRef(null);
-  const hasFiredRef = useRef(false);
-  const hasAutoStartedRef = useRef(false);
+  const session = useMemo(() => createCameraSession({
+    createScanner: () => new Html5Qrcode(ids.current.view, {
+      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      useBarCodeDetectorIfSupported: true,
+      verbose: false,
+    }),
+    releaseStreams: () => {
+      containerRef.current?.querySelectorAll('video').forEach((video) => {
+        video.srcObject?.getTracks?.().forEach((track) => track.stop());
+      });
+    },
+  }), []);
+
+  const [status, setStatus] = useState({ state: 'requesting-camera' });
   const [cameras, setCameras] = useState([]);
-  const [cameraId, setCameraId] = useState('');
-  const [running, setRunning] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('Opening the back camera...');
-  const isSecureCameraContext = window.isSecureContext || window.location.hostname === 'localhost';
-  const isHttpLanAddress = window.location.protocol === 'http:' && !['localhost', '127.0.0.1'].includes(window.location.hostname);
+  const [cameraId, setCameraId] = useState(null); // null => facingMode: environment
+  const [torch, setTorch] = useState({ supported: false, on: false });
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
-  const explainCameraError = (err) => {
-    const rawMessage = typeof err === 'string' ? err : err?.message || '';
-    const lower = rawMessage.toLowerCase();
-
-    if (!isSecureCameraContext || lower.includes('not supported')) {
-      return 'Live camera is blocked because this page is open with HTTP. Open the HTTPS phone URL, or use Camera Scan (photo) below.';
-    }
-    if (lower.includes('permission') || lower.includes('notallowed')) {
-      return 'Camera access was denied. Open browser settings and allow camera permission for this website.';
-    }
-    if (lower.includes('overconstrained') || lower.includes('constraint')) {
-      return 'The selected camera could not start. Choose Back camera and try again.';
-    }
-    if (lower.includes('notfound') || lower.includes('no camera')) {
-      return 'No camera was found on this device. Connect a camera or try another browser.';
-    }
-    return rawMessage || 'Could not access the camera. Check permissions and try again.';
-  };
-
-  const refreshCameras = async ({ keepCurrent = true } = {}) => {
-    const devices = normalizeCameraDevices(await Html5Qrcode.getCameras());
-    setCameras(devices);
-
-    const currentStillExists = devices.some((device) => device.id === cameraId);
-    if (keepCurrent && cameraId && currentStillExists) return devices;
-
-    const backCamera = findBackCamera(devices);
-    if (backCamera) {
-      setCameraId(backCamera.id);
-    } else if (!cameraId || !currentStillExists) {
-      setCameraId(BACK_CAMERA_OPTION);
-    }
-
-    return devices;
-  };
-
-  const cameraConfigFor = (selectedCameraId) => (
-    selectedCameraId
-      ? selectedCameraId
-      : { facingMode: { ideal: 'environment' } }
-  );
-
-  const stopCamera = async () => {
-    const instance = scannerRef.current;
-    if (!instance) return;
-    try {
-      if (instance.isScanning) {
-        await instance.stop();
-      }
-      await instance.clear();
-    } catch {
-      // The camera may already be stopped by the browser or component unmount.
-    } finally {
-      setRunning(false);
-      setMessage((current) => current || 'Camera stopped.');
-    }
-  };
-
-  const startCamera = async (selectedCameraId = cameraId) => {
-    if (!isSecureCameraContext) {
-      const secureMessage = 'Live camera is blocked because this page is open with HTTP. Open the HTTPS phone URL, or use Camera Scan (photo) below.';
-      setMessage(secureMessage);
-      onError?.(secureMessage);
-      return;
-    }
-
-    setLoading(true);
-    setMessage('');
-    hasFiredRef.current = false;
-
-    try {
-      if (!scannerRef.current) scannerRef.current = new Html5Qrcode(elementId);
-      if (scannerRef.current.isScanning) await stopCamera();
-
-      const config = {
-        fps: 12,
-        disableFlip: true,
-        qrbox: (viewfinderWidth, viewfinderHeight) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.floor(Math.min(320, Math.max(220, minEdge * 0.72)));
-          return { width: size, height: size };
-        },
-      };
-      const cameraConfig = cameraConfigFor(selectedCameraId);
-
-      await scannerRef.current.start(
-        cameraConfig,
-        config,
-        async (decodedText) => {
-          if (hasFiredRef.current) return;
-          hasFiredRef.current = true;
-          await stopCamera();
-          onScan(decodedText);
-        },
-        () => {}
-      );
-      setRunning(true);
-      setMessage('Back camera is active. Hold the QR code inside the square until it scans.');
-      refreshCameras({ keepCurrent: Boolean(selectedCameraId) }).catch(() => {});
-    } catch (err) {
-      const friendly = explainCameraError(err);
-      setMessage(friendly);
-      onError?.(friendly);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const publish = useCallback((next) => {
+    setStatus(next);
+    onStatusRef.current?.(next);
+  }, []);
 
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode(elementId);
-    scannerRef.current = html5QrCode;
+    let cancelled = false;
+    setTorch({ supported: false, on: false });
 
-    if (!isSecureCameraContext) {
-      setMessage('Live camera is blocked because this page is open with HTTP. Open the HTTPS phone URL, or use Camera Scan (photo) below.');
-    } else {
-      refreshCameras()
-        .catch(() => {
-          setMessage('Requesting camera permission...');
-        })
-        .finally(() => {
-          if (hasAutoStartedRef.current) return;
-          hasAutoStartedRef.current = true;
-          startCamera(BACK_CAMERA_OPTION);
-        });
+    if (!isSecureCameraContext() || !navigator.mediaDevices?.getUserMedia) {
+      publish({
+        state: 'camera-error',
+        error: explainCameraError(
+          isSecureCameraContext() ? 'getUserMedia not supported' : 'secure context',
+          { isSecureContext: isSecureCameraContext() }
+        ),
+      });
+      return undefined;
     }
 
-    return () => { stopCamera(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elementId]);
+    publish({ state: 'requesting-camera' });
+    session
+      .start(cameraId ? { deviceId: { exact: cameraId } } : BACK_CAMERA, SCAN_CONFIG, (text) => onDecodeRef.current?.(text))
+      .then(async (result) => {
+        if (cancelled || !result.started) return;
+        publish({ state: 'scanning' });
 
-  const handleCameraChange = async (e) => {
-    const nextCameraId = e.target.value;
-    setCameraId(nextCameraId);
-    if (running) {
-      await stopCamera();
-      await startCamera(nextCameraId);
-    }
-  };
+        // Labels/ids are only reliable once permission has been granted.
+        try {
+          const found = (await Html5Qrcode.getCameras()).filter((d) => d?.id);
+          if (!cancelled) setCameras(found);
+        } catch { /* switching just stays hidden */ }
 
-  const handleImageScan = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
+        try {
+          const torchFeature = result.scanner.getRunningTrackCameraCapabilities().torchFeature();
+          if (!cancelled) setTorch({ supported: torchFeature.isSupported(), on: false });
+        } catch { /* torch unsupported */ }
+      })
+      .catch((err) => {
+        if (!cancelled) publish({ state: 'camera-error', error: explainCameraError(err) });
+      });
 
-    setLoading(true);
-    setMessage('Reading QR code from photo…');
-    hasFiredRef.current = false;
+    return () => {
+      cancelled = true;
+      session.stop();
+    };
+  }, [session, cameraId, attempt, publish]);
 
+  const toggleTorch = async () => {
     try {
-      await stopCamera();
-      if (!scannerRef.current) scannerRef.current = new Html5Qrcode(elementId);
-      const decodedText = await scannerRef.current.scanFile(file, true);
-      onScan(decodedText);
+      const feature = session.getScanner().getRunningTrackCameraCapabilities().torchFeature();
+      const next = !torch.on;
+      await feature.apply(next);
+      setTorch({ supported: true, on: next });
     } catch {
-      const photoMessage = 'Could not read a QR code from that photo. Hold the QR code flat, fill the camera frame, and try again.';
-      setMessage(photoMessage);
-      onError?.(photoMessage);
-    } finally {
-      setLoading(false);
+      setTorch({ supported: false, on: false });
     }
   };
+
+  const switchCamera = () => {
+    if (cameras.length < 2) return;
+    const currentIndex = cameras.findIndex((c) => c.id === cameraId);
+    const rear = cameras.findIndex((c) => REAR_LABEL.test(c.label || ''));
+    const activeIndex = currentIndex >= 0 ? currentIndex : Math.max(rear, 0);
+    setCameraId(cameras[(activeIndex + 1) % cameras.length].id);
+  };
+
+  // Fallback for browsers/contexts without live camera: decode one photo.
+  const handlePhoto = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setPhotoBusy(true);
+    const reader = new Html5Qrcode(ids.current.file, false);
+    try {
+      onDecodeRef.current?.(await reader.scanFile(file, false));
+    } catch {
+      onDecodeRef.current?.('');
+    } finally {
+      try { reader.clear(); } catch { /* nothing to clear */ }
+      setPhotoBusy(false);
+    }
+  };
+
+  const scanning = status.state === 'scanning';
+  const failed = status.state === 'camera-error';
 
   return (
     <div className="space-y-3">
-      {isHttpLanAddress && (
-        <div className="rounded-xl border border-pending/30 bg-pending/10 px-3 py-2 text-xs text-pending">
-          Live camera requires HTTPS for this network address. Use the HTTPS URL for live scanning, or tap Camera Scan (photo) below to take a picture of the QR code instead.
-        </div>
-      )}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Camera size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ledger-400" />
-          <select
-            value={cameraId}
-            onChange={handleCameraChange}
-            disabled={cameras.length === 0 || loading}
-            className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-ledger-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-seal/40 disabled:bg-ledger-50 disabled:text-ledger-400"
-          >
-            <option value={BACK_CAMERA_OPTION}>
-              {cameras.length === 0 ? 'Back camera' : 'Back camera (recommended)'}
-            </option>
-            {cameras.map((camera, index) => (
-              <option key={camera.id} value={camera.id}>
-                {camera.label || `Camera ${index + 1}`}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="button"
-          onClick={() => (running ? stopCamera() : startCamera())}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white disabled:opacity-60"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : running ? <Square size={16} /> : <Play size={16} />}
-          {loading ? 'Starting…' : running ? 'Stop Camera' : 'Start Camera'}
-        </button>
+      <div
+        ref={containerRef}
+        className="relative w-full overflow-hidden rounded-2xl bg-ledger-950 aspect-[3/4] max-h-[65vh] sm:aspect-[4/3] landscape:aspect-[16/9]"
+      >
+        <div id={ids.current.view} className="qr-camera-frame absolute inset-0" />
+
+        {scanning && (
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-4" aria-hidden="true">
+            <div className={`relative aspect-square w-[68%] max-w-[320px] rounded-2xl border-2 ${paused ? 'border-white/30' : 'border-white/70'} shadow-[0_0_0_9999px_rgba(11,18,32,0.45)] transition-colors`}>
+              <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-2xl border-l-4 border-t-4 border-seal" />
+              <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-2xl border-r-4 border-t-4 border-seal" />
+              <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-seal" />
+              <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-seal" />
+            </div>
+            <p className="absolute bottom-4 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white">
+              Align the student's QR code inside the frame
+            </p>
+          </div>
+        )}
+
+        {status.state === 'requesting-camera' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white" role="status">
+            <Loader2 size={28} className="animate-spin" />
+            <p className="text-sm">Starting camera… allow access if your browser asks.</p>
+          </div>
+        )}
+
+        {failed && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-ledger-950 p-6 text-center text-white" role="alert">
+            <CameraOff size={30} className="text-white/70" />
+            <p className="max-w-xs text-sm">{status.error?.message}</p>
+            {status.error?.code !== 'insecure-context' && status.error?.code !== 'unsupported' && status.error?.code !== 'no-camera' && (
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="flex min-h-[44px] items-center gap-2 rounded-xl bg-white px-5 text-sm font-medium text-ledger-900"
+              >
+                <RefreshCw size={16} /> Try again
+              </button>
+            )}
+          </div>
+        )}
+
+        {scanning && (torch.supported || cameras.length > 1) && (
+          <div className="absolute right-3 top-3 flex flex-col gap-2">
+            {torch.supported && (
+              <button
+                type="button"
+                onClick={toggleTorch}
+                aria-pressed={torch.on}
+                aria-label={torch.on ? 'Turn flash off' : 'Turn flash on'}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white"
+              >
+                {torch.on ? <ZapOff size={20} /> : <Zap size={20} />}
+              </button>
+            )}
+            {cameras.length > 1 && (
+              <button
+                type="button"
+                onClick={switchCamera}
+                aria-label="Switch camera"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/55 text-white"
+              >
+                <SwitchCamera size={20} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      <div className="flex flex-col sm:flex-row gap-2">
-        <label className={`relative w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium border border-ledger-200 text-ledger-600 hover:bg-ledger-50 ${loading ? 'opacity-60 pointer-events-none' : 'cursor-pointer'}`}>
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-          Camera Scan (photo)
+
+      {failed && (
+        <label className={`relative flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-ledger-200 px-4 text-sm font-medium text-ledger-600 hover:bg-ledger-50 ${photoBusy ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
+          {photoBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+          Take a photo of the QR code instead
           <input
             type="file"
             accept="image/*"
             capture="environment"
-            onChange={handleImageScan}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={loading}
+            onChange={handlePhoto}
+            disabled={photoBusy}
+            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
           />
         </label>
-      </div>
-      {message && <p className="text-xs text-ledger-500 bg-ledger-50 rounded-lg px-3 py-2">{message}</p>}
-      <div id={elementId} className="qr-camera-frame w-full min-h-[280px] rounded-xl overflow-hidden bg-ledger-950" />
+      )}
+      <div id={ids.current.file} className="hidden" />
     </div>
   );
 };
