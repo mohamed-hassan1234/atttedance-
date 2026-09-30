@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
       !httpsDisabled && !manualHttps && mkcert(),
     ],
     server: {
-      host: '0.0.0.0',
+      host: 'localhost',
       port: 5173,
       // Dev only: accept requests arriving through a Cloudflare Quick Tunnel
       // (https://<random>.trycloudflare.com) for phone camera testing. Vite skips

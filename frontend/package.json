@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host localhost",
     "cert:iphone": "pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/create-iphone-cert.ps1 -IpAddress 172.20.10.2",
     "build": "vite build",
     "test": "node --test --experimental-test-module-mocks \"test/**/*.test.js\"",
