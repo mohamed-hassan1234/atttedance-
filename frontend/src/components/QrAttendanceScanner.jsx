@@ -3,7 +3,7 @@ import { CheckCircle2, Copy, Loader2, ScanLine, ShieldX, WifiOff, XCircle } from
 import api from '../services/api';
 import { addToQueue } from '../services/offlineQueue';
 import { createScanCoordinator } from '../services/scanCoordinator';
-import { parseStudentQr } from '../utils/parseStudentQr';
+import { parseStudentId } from '../utils/parseStudentId';
 import QrScanner from './QrScanner';
 
 // Scanner states: idle | requesting-camera | scanning | processing | success |
@@ -67,7 +67,7 @@ const ResultCard = ({ result, onNext }) => {
   );
 };
 
-// QR attendance flow for one exam: camera -> parse -> POST /qr/scan -> result.
+// Camera attendance flow for one exam: camera -> read Student ID -> POST /qr/scan -> result.
 // Eligibility, authorization and duplicate checks all happen on the server.
 const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
   const examId = exam?._id;
@@ -93,32 +93,33 @@ const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const queueOffline = (token, forExamId) => {
-    addToQueue({ qrToken: token, examId: forExamId });
+  const queueOffline = (studentId, forExamId) => {
+    addToQueue({ studentId, examId: forExamId });
     finish('offline-queued', {
       title: 'Saved offline',
-      message: 'Offline — scan saved for synchronization. Eligibility is checked when it syncs.',
+      message: `Student ID ${studentId} saved for synchronization. Eligibility is checked when it syncs.`,
     });
   };
 
   const submit = async (raw) => {
     setFlow('processing');
     const scannedExamId = live.current.examId;
-    const parsed = parseStudentQr(raw);
+    const parsed = parseStudentId(raw);
     if (!parsed.ok) {
-      finish('rejected', { title: parsed.error, message: 'This is not a SEAMS student QR code. Try again or enter the Student ID manually.' });
+      finish('rejected', { title: parsed.error, message: 'The code does not contain a Student ID. Scan the code on the student ID card, or enter the Student ID manually.' });
       return;
     }
+    const { studentId } = parsed;
 
     if (!live.current.isOnline) {
-      queueOffline(parsed.token, scannedExamId);
+      queueOffline(studentId, scannedExamId);
       return;
     }
 
     try {
       const { data } = await api.post(
         '/qr/scan',
-        { qrData: raw, examId: scannedExamId, deviceInfo: navigator.userAgent },
+        { studentId, examId: scannedExamId, deviceInfo: navigator.userAgent },
         { timeout: REQUEST_TIMEOUT_MS }
       );
       if (data.attendanceStatus === 'Eligible') {
@@ -135,7 +136,7 @@ const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
     } catch (err) {
       const res = err.response;
       if (!res) {
-        queueOffline(parsed.token, scannedExamId); // network failure or timeout: never lose the scan
+        queueOffline(studentId, scannedExamId); // network failure or timeout: never lose the scan
         return;
       }
       const body = res.data || {};
@@ -153,7 +154,7 @@ const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
         finish('rejected', { title: 'Session expired', message: 'Please sign in again.' });
       } else {
         finish('rejected', {
-          title: res.status === 404 ? 'Student not found' : res.status === 410 ? 'QR code deactivated' : 'Scan rejected',
+          title: res.status === 404 ? `Student ${studentId} not found` : 'Scan rejected',
           message: body.message || 'Could not record attendance. Please try again.',
           student: body.student,
         });

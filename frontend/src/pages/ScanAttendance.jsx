@@ -196,7 +196,7 @@ const ScanAttendance = () => {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display text-2xl text-ledger-900">Scan attendance</h1>
-          <p className="text-ledger-400 text-sm mt-1">Choose your exam, then scan each student's QR code. Attendance is recorded and checked on the server.</p>
+          <p className="text-ledger-400 text-sm mt-1">Choose your exam, then point the camera at each student's ID card — it reads only the Student ID. Attendance is recorded and checked on the server.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="neutral"><Users2 size={13} /> {sessionCount} recorded this session</Badge>
@@ -246,7 +246,7 @@ const ScanAttendance = () => {
           </div>
 
           <div role="tablist" aria-label="Attendance method" className="grid grid-cols-2 gap-1 rounded-xl bg-ledger-50 p-1">
-            {[['qr', 'Scan QR', Camera], ['manual', 'Enter Student ID', Keyboard]].map(([key, label, Icon]) => (
+            {[['qr', 'Scan ID card', Camera], ['manual', 'Enter Student ID', Keyboard]].map(([key, label, Icon]) => (
               <button
                 key={key}
                 type="button"
@@ -275,7 +275,7 @@ const ScanAttendance = () => {
                 <input
                   value={studentIdInput}
                   onChange={(e) => setStudentIdInput(e.target.value)}
-                  placeholder="Type Student ID (e.g. CS-2001)"
+                  placeholder="Type Student ID (e.g. HU1234)"
                   className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-ledger-200 bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-seal/40"
                 />
               </div>

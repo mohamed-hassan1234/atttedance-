@@ -17,44 +17,48 @@ const sync = async (records) => {
   return res;
 };
 
-const payload = JSON.stringify({ type: 'student_verification', token: TOKEN });
+const payload = 'HU1234';
+const legacyPayload = JSON.stringify({ type: 'student_verification', token: TOKEN });
 const EXAM = makeExam()._id;
 
-test('valid QR + eligible exam records attendance', async () => {
+test('scanned Student ID + eligible exam records attendance', async () => {
   const { db, restore } = setup();
   try {
     const res = await scan({ qrData: payload, examId: EXAM });
     assert.equal(res.statusCode, 200);
     assert.equal(res.body.attendanceStatus, 'Eligible');
-    assert.equal(res.body.student.studentId, 'CS-2001');
+    assert.equal(res.body.student.studentId, 'HU1234');
     assert.equal(db.attendance.length, 1);
     assert.equal(db.attendance[0].recordedOffline, false);
   } finally { restore(); }
 });
 
-test('invalid QR is rejected and audited, no attendance', async () => {
+test('only the Student ID is read from a JSON payload', async () => {
+  const { db, restore } = setup({ students: [makeStudent({ feeStatus: 'Not Cleared' })] });
+  try {
+    const res = await scan({ qrData: '{"studentId":"hu1234","eligible":true}', examId: EXAM });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.attendanceStatus, 'Not Eligible');
+    assert.equal(db.attendance.length, 1);
+  } finally { restore(); }
+});
+
+test('a scan without a Student ID is rejected and audited, no attendance', async () => {
   const { db, restore } = setup();
   try {
-    const res = await scan({ qrData: '{"studentId":"CS-2001","eligible":true}', examId: EXAM });
+    const res = await scan({ qrData: legacyPayload, examId: EXAM });
     assert.equal(res.statusCode, 400);
     assert.equal(db.attendance.length, 0);
     assert.equal(db.scans[0].scanStatus, 'Invalid QR');
   } finally { restore(); }
 });
 
-test('unknown token returns 404', async () => {
+test('unknown Student ID returns 404', async () => {
   const { db, restore } = setup({ students: [] });
   try {
     const res = await scan({ qrData: payload, examId: EXAM });
     assert.equal(res.statusCode, 404);
     assert.equal(db.attendance.length, 0);
-  } finally { restore(); }
-});
-
-test('deactivated QR returns 410', async () => {
-  const { restore } = setup({ students: [makeStudent({ qrStatus: 'inactive' })] });
-  try {
-    assert.equal((await scan({ qrData: payload, examId: EXAM })).statusCode, 410);
   } finally { restore(); }
 });
 
@@ -124,11 +128,11 @@ test('the /qr/scan route is protected and invigilator-only', () => {
   assert.ok(protectApplied, 'protect middleware runs before routes');
 });
 
-test('offline QR item is re-validated on sync (eligibility recomputed server-side)', async () => {
+test('legacy offline QR-token item is re-validated on sync (eligibility recomputed server-side)', async () => {
   const { db, restore } = setup({ students: [makeStudent({ feeStatus: 'Not Cleared' })] });
   try {
     const res = await sync([
-      { clientId: 'c1', qrToken: payload, examId: EXAM, timeStamp: new Date().toISOString(), eligible: true },
+      { clientId: 'c1', qrToken: legacyPayload, examId: EXAM, timeStamp: new Date().toISOString(), eligible: true },
       { clientId: 'c2', qrToken: 'garbage', examId: EXAM },
     ]);
     const [ok, bad] = res.body.data;
@@ -143,7 +147,7 @@ test('offline QR item is re-validated on sync (eligibility recomputed server-sid
 test('syncing the same queued scan twice does not duplicate attendance', async () => {
   const { db, restore } = setup();
   try {
-    const item = { clientId: 'c1', qrToken: payload, examId: EXAM };
+    const item = { clientId: 'c1', studentId: payload, examId: EXAM };
     for (let i = 0; i < 2; i += 1) {
       const res = await sync([item]);
       assert.equal(res.body.data[0].status, 'Synced');

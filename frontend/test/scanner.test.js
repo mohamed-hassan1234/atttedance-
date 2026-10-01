@@ -1,31 +1,32 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseStudentQr } from '../src/utils/parseStudentQr.js';
+import { parseStudentId } from '../src/utils/parseStudentId.js';
 import { createScanCoordinator } from '../src/services/scanCoordinator.js';
 import { createCameraSession, explainCameraError } from '../src/services/cameraSession.js';
 
 const TOKEN = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
 
-// ---- QR payload parsing ----------------------------------------------------
+// ---- Student ID parsing ----------------------------------------------------
 
-test('parses the SEAMS JSON payload to its token', () => {
-  const parsed = parseStudentQr(JSON.stringify({ type: 'student_verification', token: TOKEN }));
-  assert.deepEqual(parsed, { ok: true, token: TOKEN });
+test('reads a bare Student ID like HU1234, trimmed and upper-cased', () => {
+  assert.deepEqual(parseStudentId('HU1234'), { ok: true, studentId: 'HU1234' });
+  assert.deepEqual(parseStudentId('  hu1234\n'), { ok: true, studentId: 'HU1234' });
 });
 
-test('accepts URL and bare-token payloads, trimming whitespace', () => {
-  assert.equal(parseStudentQr(`  ${TOKEN} `).token, TOKEN);
-  assert.equal(parseStudentQr(`https://seams.example/verify-student/${TOKEN}`).token, TOKEN);
+test('reads only the Student ID from JSON or from longer card text', () => {
+  assert.deepEqual(parseStudentId('{"studentId":"hu1234","eligible":true}'), { ok: true, studentId: 'HU1234' });
+  assert.deepEqual(parseStudentId('Name: Ahmed Ali\nID: HU1234\nFaculty: Science'), { ok: true, studentId: 'HU1234' });
 });
 
-test('ignores injected fields (eligible flag) — only the token is read', () => {
-  const parsed = parseStudentQr(JSON.stringify({ type: 'student_verification', token: TOKEN, eligible: true }));
-  assert.deepEqual(parsed, { ok: true, token: TOKEN });
-});
-
-test('rejects invalid payloads with a predictable error and never throws', () => {
-  for (const bad of ['', '  ', 'hello', '{oops', '{"studentId":"CS-1"}', null, undefined, 7, {}, 'x'.repeat(3000)]) {
-    assert.deepEqual(parseStudentQr(bad), { ok: false, error: 'Invalid student QR code.' });
+test('rejects anything without exactly one valid Student ID and never throws', () => {
+  const bad = [
+    '', '   ', 'hello', 'HU', '1234', 'HU12', 'H1234', 'HU-1234', 'HU1234X',
+    'HU1234 HU5678', '{oops', '{"id":"HU1234"}', '{"studentId":"HU-1234"}', TOKEN,
+    JSON.stringify({ type: 'student_verification', token: TOKEN }),
+    null, undefined, 7, {}, 'x'.repeat(3000),
+  ];
+  for (const value of bad) {
+    assert.deepEqual(parseStudentId(value), { ok: false, error: 'No Student ID found.' }, String(value).slice(0, 30));
   }
 });
 

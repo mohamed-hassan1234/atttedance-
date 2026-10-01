@@ -2,8 +2,7 @@ const mongoose = require('mongoose');
 const QrScanRecord = require('../models/QrScanRecord');
 const Student = require('../models/Student');
 const Examination = require('../models/Examination');
-const { extractQrToken } = require('../utils/qrPayload');
-const { findStudentByQrToken } = require('../utils/qrTokens');
+const { extractStudentId } = require('../utils/qrPayload');
 const { processAttendanceAttempt, canRecordForExam } = require('../services/attendanceService');
 const { checkStudentStanding } = require('../utils/eligibility');
 
@@ -29,13 +28,13 @@ const publicStudent = (student) => {
   };
 };
 
-const createScanRecord = async ({ req, token, student, status }) => {
+const createScanRecord = async ({ req, scannedId, student, status }) => {
   return QrScanRecord.create({
     student: student?._id,
     studentIdSnapshot: student?.studentId || '',
     invigilator: req.user._id,
     invigilatorNameSnapshot: req.user.fullName,
-    qrTokenReference: token || 'unreadable',
+    qrTokenReference: scannedId || 'unreadable',
     scanStatus: status,
     scannedAt: new Date(),
     deviceInfo: req.body.deviceInfo || req.headers['user-agent'] || '',
@@ -43,21 +42,22 @@ const createScanRecord = async ({ req, token, student, status }) => {
   });
 };
 
-// @desc  Validate a student QR code, save an audit record and, when an examId is
-//        supplied, record attendance through the same service as manual entry.
+// @desc  Read the Student ID the camera decoded, save an audit record and, when
+//        an examId is supplied, record attendance through the same service as
+//        manual entry.
 // @route POST /api/qr/scan
-// @body  { qrData | token, examId?, deviceInfo? }
+// @body  { qrData | studentId, examId?, deviceInfo? }
 // @access Invigilator
-// Without examId this stays the legacy "verify only" call. The QR contributes only
-// an opaque token; the student, eligibility and authorization all come from the DB.
+// Without examId this stays the legacy "verify only" call. The scan contributes
+// only the Student ID; the student, eligibility and authorization come from the DB.
 const scanStudentQr = async (req, res, next) => {
   try {
-    const token = extractQrToken(req.body.qrData || req.body.token);
+    const scannedId = extractStudentId(req.body.qrData || req.body.studentId);
     const { examId } = req.body;
 
-    if (!token) {
-      await createScanRecord({ req, token, status: 'Invalid QR' });
-      return res.status(400).json({ success: false, message: 'Invalid student QR code.', scanStatus: 'Invalid QR' });
+    if (!scannedId) {
+      await createScanRecord({ req, status: 'Invalid QR' });
+      return res.status(400).json({ success: false, message: 'No valid Student ID was found in the scan.', scanStatus: 'Invalid QR' });
     }
 
     if (examId !== undefined && !mongoose.isValidObjectId(examId)) {
@@ -67,7 +67,7 @@ const scanStudentQr = async (req, res, next) => {
     if (!examId) {
       const recentDuplicate = await QrScanRecord.findOne({
         invigilator: req.user._id,
-        qrTokenReference: token,
+        qrTokenReference: scannedId,
         scannedAt: { $gte: new Date(Date.now() - RECENT_DUPLICATE_MS) },
       }).populate('student');
 
@@ -82,25 +82,14 @@ const scanStudentQr = async (req, res, next) => {
       }
     }
 
-    const { student, status } = await findStudentByQrToken(token);
+    const student = await Student.findOne({ studentId: scannedId });
     if (!student) {
-      const record = await createScanRecord({ req, token, status: 'Invalid QR' });
-      return res.status(404).json({ success: false, message: 'Student not found for this QR code.', scanStatus: 'Invalid QR', data: record });
-    }
-
-    if (status !== 'ok') {
-      const record = await createScanRecord({ req, token, student, status: 'QR deactivated' });
-      return res.status(410).json({
-        success: false,
-        message: 'This QR code has been deactivated. Ask the Admin for the current QR code.',
-        scanStatus: 'QR deactivated',
-        data: record,
-        student: publicStudent(student),
-      });
+      const record = await createScanRecord({ req, scannedId, status: 'Invalid QR' });
+      return res.status(404).json({ success: false, message: `No student found with ID ${scannedId}.`, scanStatus: 'Invalid QR', data: record });
     }
 
     if (!examId) {
-      const record = await createScanRecord({ req, token, student, status: 'Successful' });
+      const record = await createScanRecord({ req, scannedId, student, status: 'Successful' });
       return res.status(200).json({
         success: true,
         message: 'Valid student QR code',
@@ -115,7 +104,7 @@ const scanStudentQr = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Examination not found.', scanStatus: 'Exam not found' });
     }
     if (!canRecordForExam(exam, req.user)) {
-      await createScanRecord({ req, token, student, status: 'Access denied' });
+      await createScanRecord({ req, scannedId, student, status: 'Access denied' });
       console.warn(`QR attendance denied: user ${req.user._id} is not assigned to exam ${exam._id}`);
       return res.status(403).json({
         success: false,
@@ -141,7 +130,7 @@ const scanStudentQr = async (req, res, next) => {
     };
 
     if (outcome === 'duplicate') {
-      await createScanRecord({ req, token, student, status: 'Duplicate scan' });
+      await createScanRecord({ req, scannedId, student, status: 'Duplicate scan' });
       return res.status(409).json({
         success: false,
         message: 'Attendance has already been recorded for this student.',
@@ -153,7 +142,7 @@ const scanStudentQr = async (req, res, next) => {
       });
     }
 
-    await createScanRecord({ req, token, student, status: 'Successful' });
+    await createScanRecord({ req, scannedId, student, status: 'Successful' });
     if (attendance.eligibilityStatus === 'Not Eligible') {
       console.warn(`QR attendance rejected: student ${student._id}, exam ${exam._id}: ${attendance.eligibilityReason}`);
     }

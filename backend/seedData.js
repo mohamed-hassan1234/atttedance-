@@ -120,16 +120,16 @@ const seed = async () => {
 
     console.log('🎓 Creating student directory (simulated University API cache)...');
     const students = await Student.create([
-      { studentId: 'CS-2001', fullName: 'Hodan Ibrahim', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'hodan.ibrahim@student.edu' },
-      { studentId: 'CS-2002', fullName: 'Khalid Omar', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'khalid.omar@student.edu' },
-      { studentId: 'CS-2003', fullName: 'Ifrah Abdullahi', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Not Cleared', photoUrl: '', email: 'ifrah.abdullahi@student.edu' },
-      { studentId: 'CS-2004', fullName: 'Yusuf Ahmed', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Cleared', photoUrl: '', email: 'yusuf.ahmed@student.edu' },
-      { studentId: 'CS-2005', fullName: 'Nasra Mohamed', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Cleared', photoUrl: '', email: 'nasra.mohamed@student.edu' },
-      { studentId: 'CS-2006', fullName: 'Bashir Adan', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Not Cleared', photoUrl: '', email: 'bashir.adan@student.edu' },
-      { studentId: 'BUS-3001', fullName: 'Faadumo Ali', faculty: 'Business', department: 'Accounting', feeStatus: 'Cleared', photoUrl: '', email: 'faadumo.ali@student.edu' },
-      { studentId: 'BUS-3002', fullName: 'Cabdiraxmaan Sheikh', faculty: 'Business', department: 'Accounting', feeStatus: 'Cleared', absenceCount: 5, photoUrl: '', email: 'cabdiraxmaan.sheikh@student.edu' },
-      { studentId: 'BUS-3003', fullName: 'Halima Warsame', faculty: 'Business', department: 'Marketing', feeStatus: 'Cleared', photoUrl: '', email: 'halima.warsame@student.edu' },
-      { studentId: 'ENG-4001', fullName: 'Deeqa Farah', faculty: 'Engineering', department: 'Civil Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'deeqa.farah@student.edu' },
+      { studentId: 'HU2001', fullName: 'Hodan Ibrahim', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'hodan.ibrahim@student.edu' },
+      { studentId: 'HU2002', fullName: 'Khalid Omar', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'khalid.omar@student.edu' },
+      { studentId: 'HU2003', fullName: 'Ifrah Abdullahi', faculty: 'Computer Science', department: 'Software Engineering', feeStatus: 'Not Cleared', photoUrl: '', email: 'ifrah.abdullahi@student.edu' },
+      { studentId: 'HU2004', fullName: 'Yusuf Ahmed', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Cleared', photoUrl: '', email: 'yusuf.ahmed@student.edu' },
+      { studentId: 'HU2005', fullName: 'Nasra Mohamed', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Cleared', photoUrl: '', email: 'nasra.mohamed@student.edu' },
+      { studentId: 'HU2006', fullName: 'Bashir Adan', faculty: 'Computer Science', department: 'Information Technology', feeStatus: 'Not Cleared', photoUrl: '', email: 'bashir.adan@student.edu' },
+      { studentId: 'HU3001', fullName: 'Faadumo Ali', faculty: 'Business', department: 'Accounting', feeStatus: 'Cleared', photoUrl: '', email: 'faadumo.ali@student.edu' },
+      { studentId: 'HU3002', fullName: 'Cabdiraxmaan Sheikh', faculty: 'Business', department: 'Accounting', feeStatus: 'Cleared', absenceCount: 5, photoUrl: '', email: 'cabdiraxmaan.sheikh@student.edu' },
+      { studentId: 'HU3003', fullName: 'Halima Warsame', faculty: 'Business', department: 'Marketing', feeStatus: 'Cleared', photoUrl: '', email: 'halima.warsame@student.edu' },
+      { studentId: 'HU4001', fullName: 'Deeqa Farah', faculty: 'Engineering', department: 'Civil Engineering', feeStatus: 'Cleared', photoUrl: '', email: 'deeqa.farah@student.edu' },
     ]);
 
     for (const student of students) {
@@ -207,14 +207,14 @@ const seed = async () => {
 
     const attendanceSeed = [
       // DSA exam - CS/Software Engineering students, all should be eligible except fee-blocked one
-      { student: findStudent('CS-2001'), exam: examDSA, invigilator: invig1, eligible: true, offline: false },
-      { student: findStudent('CS-2002'), exam: examDSA, invigilator: invig1, eligible: true, offline: false },
-      { student: findStudent('CS-2003'), exam: examDSA, invigilator: invig1, eligible: false, reason: 'Student fees are not cleared for this examination', offline: false },
+      { student: findStudent('HU2001'), exam: examDSA, invigilator: invig1, eligible: true, offline: false },
+      { student: findStudent('HU2002'), exam: examDSA, invigilator: invig1, eligible: true, offline: false },
+      { student: findStudent('HU2003'), exam: examDSA, invigilator: invig1, eligible: false, reason: 'Student fees are not cleared for this examination', offline: false },
       // DB exam - CS/IT students
-      { student: findStudent('CS-2004'), exam: examDB, invigilator: invig2, eligible: true, offline: false },
-      { student: findStudent('CS-2005'), exam: examDB, invigilator: invig2, eligible: true, offline: true, pending: true },
+      { student: findStudent('HU2004'), exam: examDB, invigilator: invig2, eligible: true, offline: false },
+      { student: findStudent('HU2005'), exam: examDB, invigilator: invig2, eligible: true, offline: true, pending: true },
       // Completed engineering exam
-      { student: findStudent('ENG-4001'), exam: examEng, invigilator: invig1, eligible: true, offline: false },
+      { student: findStudent('HU4001'), exam: examEng, invigilator: invig1, eligible: true, offline: false },
     ];
 
     for (const item of attendanceSeed) {
@@ -251,7 +251,7 @@ const seed = async () => {
     console.log(`Invigilator   invig2       invig2@university.edu       ${PLAIN_PASSWORDS.invig2}`);
     console.log(`Invigilator   invig3       invig3@university.edu       ${PLAIN_PASSWORDS.invig3}`);
     console.log('----------------------------------------------------------------');
-    console.log(`Students seeded : ${students.length} (try scanning e.g. CS-2001 (eligible), CS-2003 (fee not cleared), BUS-3002 (5 absences), BUS-3001)`);
+    console.log(`Students seeded : ${students.length} (try scanning e.g. HU2001 (eligible), HU2003 (fee not cleared), HU3002 (5 absences), HU3001)`);
     console.log(`Exams seeded    : ${exams.length}`);
     console.log(`Faculties seeded: 3 (Computer Science, Business, Engineering)`);
     console.log(`Classes seeded  : 5`);

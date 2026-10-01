@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, GraduationCap, QrCode, Download, Printer, RefreshCcw, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, GraduationCap, QrCode, Download, Printer } from 'lucide-react';
 import QRCode from 'qrcode';
 import api from '../services/api';
 import Modal from '../components/Modal';
@@ -71,44 +71,18 @@ const Students = () => {
     load();
   };
 
-  const buildQrPayload = (token) => JSON.stringify({ type: 'student_verification', token });
-
-  const loadQrForStudent = async (s) => {
-    setQrLoading(true);
-    setQrError('');
-    try {
-      const { data } = await api.get(`/students/${s._id}/qr`);
-      const payload = buildQrPayload(data.data.qrToken);
-      setQrStudent(data.data.student);
-      setQrPayload(payload);
-      setQrDataUrl(await QRCode.toDataURL(payload, { width: 300, margin: 2 }));
-    } catch (err) {
-      setQrError(err.response?.data?.message || 'Could not load this student QR code.');
-    } finally {
-      setQrLoading(false);
-    }
-  };
-
+  // The student's QR code holds only their Student ID, which is what the
+  // invigilator camera reads.
   const openQr = async (s) => {
     setQrStudent(s);
+    setQrPayload(s.studentId);
     setQrDataUrl('');
-    setQrPayload('');
-    await loadQrForStudent(s);
-  };
-
-  const regenerateQr = async () => {
-    if (!qrStudent || !window.confirm('Regenerate this QR code? The old QR code will stop working.')) return;
-    setQrLoading(true);
     setQrError('');
+    setQrLoading(true);
     try {
-      const { data } = await api.post(`/students/${qrStudent._id}/regenerate-qr`);
-      const payload = buildQrPayload(data.data.qrToken);
-      setQrStudent(data.data.student);
-      setQrPayload(payload);
-      setQrDataUrl(await QRCode.toDataURL(payload, { width: 300, margin: 2 }));
-      load();
-    } catch (err) {
-      setQrError(err.response?.data?.message || 'Could not regenerate this QR code.');
+      setQrDataUrl(await QRCode.toDataURL(s.studentId, { width: 300, margin: 2 }));
+    } catch {
+      setQrError('Could not generate this student QR code.');
     } finally {
       setQrLoading(false);
     }
@@ -299,8 +273,6 @@ const Students = () => {
                 <Info label="Class" value={qrStudent.className || 'Not set'} />
                 <Info label="Fee status" value={qrStudent.feeStatus} />
                 <Info label="Absences" value={qrStudent.absenceCount || 0} />
-                <Info label="QR status" value={qrStudent.qrStatus || 'active'} />
-                <Info label="Generated" value={qrStudent.qrGeneratedAt ? new Date(qrStudent.qrGeneratedAt).toLocaleString() : 'Generating'} />
               </div>
               {qrError && <div className="bg-ineligible/10 text-ineligible text-sm rounded-xl px-3.5 py-2.5">{qrError}</div>}
               <div className="flex flex-wrap gap-2">
@@ -310,15 +282,12 @@ const Students = () => {
                 <button onClick={downloadQr} disabled={!qrDataUrl} className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium border border-ledger-200 text-ledger-600 hover:bg-ledger-50 disabled:opacity-50">
                   <Download size={15} /> Download
                 </button>
-                <button onClick={regenerateQr} disabled={qrLoading} className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white disabled:opacity-60">
-                  {qrLoading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCcw size={15} />} Regenerate
-                </button>
               </div>
             </div>
             <div className="flex flex-col items-center gap-3 text-center">
               {qrLoading && !qrDataUrl && <div className="w-[260px] h-[260px] rounded-xl bg-ledger-50 flex items-center justify-center text-ledger-400 text-sm">Generating QR…</div>}
               {qrDataUrl && <img src={qrDataUrl} alt={`QR code for ${qrStudent.studentId}`} className="w-[260px] h-[260px] rounded-xl border border-ledger-100" />}
-              <p className="text-ledger-400 text-xs max-w-[260px]">Scan with the invigilator QR scanner. The QR contains only a secure verification token.</p>
+              <p className="text-ledger-400 text-xs max-w-[260px]">Scan with the invigilator QR scanner. The QR contains only the Student ID.</p>
               <span className="sr-only">{qrPayload}</span>
             </div>
           </div>

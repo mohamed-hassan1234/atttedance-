@@ -17,7 +17,7 @@ const thenable = (value) => ({
 
 const makeStudent = (over = {}) => ({
   _id: 's1',
-  studentId: 'CS-2001',
+  studentId: 'HU1234',
   fullName: 'Ahmed Mohamed',
   faculty: 'Computer Science',
   department: 'Software',

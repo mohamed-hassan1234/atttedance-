@@ -8,12 +8,24 @@ let instanceCounter = 0;
 const SCAN_CONFIG = { fps: 10, disableFlip: true };
 const BACK_CAMERA = { facingMode: 'environment' };
 const REAR_LABEL = /back|rear|environment/i;
+// Student ID cards carry the ID as a QR code or a 1D barcode.
+const ID_CARD_FORMATS = [
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.CODABAR,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.DATA_MATRIX,
+  Html5QrcodeSupportedFormats.PDF_417,
+];
 
 const isSecureCameraContext = () => (
   window.isSecureContext || ['localhost', '127.0.0.1'].includes(window.location.hostname)
 );
 
-// Live camera QR scanner. It only reports what it decodes (`onDecode`); the parent
+// Live camera scanner for student ID cards (QR code or barcode). It only reports what it decodes (`onDecode`); the parent
 // decides what to do with it and locks out repeat detections. The camera stays
 // open between students and is released when this component unmounts.
 //
@@ -32,7 +44,7 @@ const QrScanner = ({ onDecode, onStatus, paused = false }) => {
 
   const session = useMemo(() => createCameraSession({
     createScanner: () => new Html5Qrcode(ids.current.view, {
-      formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+      formatsToSupport: ID_CARD_FORMATS,
       useBarCodeDetectorIfSupported: true,
       verbose: false,
     }),
@@ -123,7 +135,7 @@ const QrScanner = ({ onDecode, onStatus, paused = false }) => {
     event.target.value = '';
     if (!file) return;
     setPhotoBusy(true);
-    const reader = new Html5Qrcode(ids.current.file, false);
+    const reader = new Html5Qrcode(ids.current.file, { formatsToSupport: ID_CARD_FORMATS, verbose: false });
     try {
       onDecodeRef.current?.(await reader.scanFile(file, false));
     } catch {
@@ -154,7 +166,7 @@ const QrScanner = ({ onDecode, onStatus, paused = false }) => {
               <span className="absolute -bottom-0.5 -right-0.5 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-seal" />
             </div>
             <p className="absolute bottom-4 rounded-full bg-black/55 px-3 py-1.5 text-xs font-medium text-white">
-              Align the student's QR code inside the frame
+              Point at the Student ID code on the card
             </p>
           </div>
         )}
@@ -212,7 +224,7 @@ const QrScanner = ({ onDecode, onStatus, paused = false }) => {
       {failed && (
         <label className={`relative flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border border-ledger-200 px-4 text-sm font-medium text-ledger-600 hover:bg-ledger-50 ${photoBusy ? 'pointer-events-none opacity-60' : 'cursor-pointer'}`}>
           {photoBusy ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
-          Take a photo of the QR code instead
+          Take a photo of the student ID card instead
           <input
             type="file"
             accept="image/*"
