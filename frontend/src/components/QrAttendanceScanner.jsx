@@ -1,70 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Copy, Loader2, ScanLine, ShieldX, WifiOff, XCircle } from 'lucide-react';
+import { WifiOff, Loader2 } from 'lucide-react';
 import api from '../services/api';
 import { addToQueue } from '../services/offlineQueue';
 import { createScanCoordinator } from '../services/scanCoordinator';
 import { parseStudentId } from '../utils/parseStudentId';
 import QrScanner from './QrScanner';
+import AttendanceResultCard, { AUTO_RESET_STATES } from './AttendanceResultCard';
 
+// Legacy QR/barcode scanning flow. Superseded by OcrAttendanceScanner as the
+// primary attendance method (see pages/ScanAttendance.jsx), but kept working
+// and tested: it shares the same backend endpoint and the same audit trail
+// (QrScanRecord), so any ID card still carrying an old QR code keeps working.
+//
 // Scanner states: idle | requesting-camera | scanning | processing | success |
 // rejected | duplicate | offline-queued | camera-error
 // `flow` tracks what the scan flow is doing ('ready' means the camera state
 // applies); `cameraState` is reported by QrScanner. They are kept separate so
 // neither can overwrite the other.
 const AUTO_RESET_MS = 2500;
-const AUTO_RESET_STATES = ['success', 'offline-queued'];
 const REQUEST_TIMEOUT_MS = 15000;
 
 const vibrate = (pattern) => {
   try { navigator.vibrate?.(pattern); } catch { /* not supported */ }
-};
-
-const formatTime = (value) => new Date(value || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-const STYLES = {
-  success: { box: 'border-eligible/40 bg-eligible/10 text-eligible', Icon: CheckCircle2 },
-  rejected: { box: 'border-ineligible/40 bg-ineligible/10 text-ineligible', Icon: XCircle },
-  duplicate: { box: 'border-pending/40 bg-pending/10 text-pending', Icon: Copy },
-  'offline-queued': { box: 'border-pending/40 bg-pending/10 text-pending', Icon: WifiOff },
-  denied: { box: 'border-ineligible/40 bg-ineligible/10 text-ineligible', Icon: ShieldX },
-};
-
-const ResultCard = ({ result, onNext }) => {
-  const { box, Icon } = STYLES[result.style || result.kind] || STYLES.rejected;
-  const { student } = result;
-  return (
-    <div className={`rounded-2xl border p-4 ${box}`} role="status" aria-live="polite">
-      <div className="flex items-start gap-3">
-        <Icon size={28} className="mt-0.5 shrink-0" aria-hidden="true" />
-        <div className="min-w-0 flex-1">
-          <p className="text-lg font-semibold leading-tight">{result.title}</p>
-          {result.message && <p className="mt-1 text-sm text-ledger-700">{result.message}</p>}
-        </div>
-      </div>
-
-      {student && (
-        <dl className="mt-3 grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 rounded-xl bg-white/80 p-3 text-sm text-ledger-900">
-          <dt className="text-ledger-400">Student</dt><dd className="font-medium">{student.fullName}</dd>
-          <dt className="text-ledger-400">ID</dt><dd className="font-mono">{student.studentId}</dd>
-          <dt className="text-ledger-400">Faculty</dt><dd>{student.faculty}</dd>
-          <dt className="text-ledger-400">Department</dt><dd>{student.department}</dd>
-          {student.className && (<><dt className="text-ledger-400">Class</dt><dd>{student.className}</dd></>)}
-          {result.exam && (<><dt className="text-ledger-400">Exam</dt><dd>{result.exam.examName} ({result.exam.courseCode})</dd></>)}
-          <dt className="text-ledger-400">Time</dt><dd>{formatTime(result.time)}</dd>
-        </dl>
-      )}
-
-      {!AUTO_RESET_STATES.includes(result.kind) && (
-        <button
-          type="button"
-          onClick={onNext}
-          className="mt-3 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-ledger-900 text-sm font-medium text-white hover:bg-ledger-800"
-        >
-          <ScanLine size={18} /> Scan next student
-        </button>
-      )}
-    </div>
-  );
 };
 
 // Camera attendance flow for one exam: camera -> read Student ID -> POST /qr/scan -> result.
@@ -186,7 +143,7 @@ const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
 
   if (!examId) {
     return (
-      <div className="rounded-2xl border border-dashed border-ledger-200 p-6 text-center text-sm text-ledger-500">
+      <div className="rounded-xl border border-dashed border-ledger-200 p-6 text-center text-sm text-ledger-500">
         Select an examination first. Scans are always recorded against the exam you have open.
       </div>
     );
@@ -214,7 +171,7 @@ const QrAttendanceScanner = ({ exam, isOnline, onOutcome }) => {
           <Loader2 size={16} className="animate-spin" /> Checking student…
         </div>
       )}
-      {result && <ResultCard result={result} onNext={reset} />}
+      {result && <AttendanceResultCard result={result} onNext={reset} />}
     </div>
   );
 };

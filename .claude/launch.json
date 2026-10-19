@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend-http",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "--host", "localhost", "--port", "5199", "--strictPort"],
+      "port": 5199,
+      "cwd": "frontend",
+      "env": { "VITE_HTTPS": "false" }
+    }
+  ]
+}

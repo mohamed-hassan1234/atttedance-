@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import AppLayout from './layouts/AppLayout';
 
@@ -13,13 +14,16 @@ import Reports from './pages/Reports';
 import Faculties from './pages/Faculties';
 import Classes from './pages/Classes';
 import Assignments from './pages/Assignments';
+import DesignProposal from './design-proposal';
 
 function App() {
   return (
     <AuthProvider>
+      <ToastProvider>
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/design-proposal/*" element={<DesignProposal />} />
 
           <Route
             path="/"
@@ -83,6 +87,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   );
 }

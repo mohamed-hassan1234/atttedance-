@@ -20,7 +20,10 @@ const manualHttpsConfig = (env) => {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const manualHttps = manualHttpsConfig(env);
-  const httpsDisabled = env.VITE_HTTPS === 'false';
+  // Plain http://localhost:5173 by default: browsers treat localhost as a secure
+  // context, so the laptop webcam works with zero setup. Set VITE_HTTPS=true
+  // only for phone/LAN testing (needs a trusted certificate on the phone).
+  const httpsDisabled = env.VITE_HTTPS !== 'true' && !manualHttps;
 
   return {
     plugins: [

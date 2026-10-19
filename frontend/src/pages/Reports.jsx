@@ -3,13 +3,18 @@ import { Download, FileBarChart2, QrCode } from 'lucide-react';
 import api from '../services/api';
 import Badge from '../components/Badge';
 import StatCard from '../components/StatCard';
+import TableSkeleton from '../components/TableSkeleton';
+import { useToast } from '../context/ToastContext';
 
 const Reports = () => {
+  const toast = useToast();
   const [exams, setExams] = useState([]);
   const [examFilter, setExamFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [records, setRecords] = useState([]);
+  const [recordsLoading, setRecordsLoading] = useState(true);
   const [qrRecords, setQrRecords] = useState([]);
+  const [qrLoading, setQrLoading] = useState(true);
   const [qrStatusFilter, setQrStatusFilter] = useState('');
   const [qrStudentFilter, setQrStudentFilter] = useState('');
   const [qrInvigilatorFilter, setQrInvigilatorFilter] = useState('');
@@ -20,14 +25,17 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
 
   const loadRecords = async () => {
+    setRecordsLoading(true);
     const params = {};
     if (examFilter) params.exam = examFilter;
     if (statusFilter) params.eligibilityStatus = statusFilter;
     const { data } = await api.get('/attendance', { params });
     setRecords(data.data);
+    setRecordsLoading(false);
   };
 
   const loadQrRecords = async () => {
+    setQrLoading(true);
     const params = {};
     if (qrStatusFilter) params.scanStatus = qrStatusFilter;
     if (qrStudentFilter) params.studentId = qrStudentFilter;
@@ -35,6 +43,7 @@ const Reports = () => {
     if (qrDateFilter) params.date = qrDateFilter;
     const { data } = await api.get('/qr/scans', { params });
     setQrRecords(data.data);
+    setQrLoading(false);
   };
 
   useEffect(() => {
@@ -76,30 +85,31 @@ const Reports = () => {
     a.download = 'attendance-report.csv';
     a.click();
     URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length} record${rows.length === 1 ? '' : 's'} to CSV.`);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-2xl text-ledger-900">Reports & statistics</h1>
+          <h1 className="font-display font-semibold tracking-tight text-2xl text-ledger-900">Reports & statistics</h1>
           <p className="text-ledger-400 text-sm mt-1">Attendance records across all examinations.</p>
         </div>
-        <button onClick={exportCsv} className="flex items-center gap-2 bg-ledger-900 hover:bg-ledger-800 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
+        <button onClick={exportCsv} className="flex items-center gap-2 bg-brand hover:bg-brand-deep text-white text-sm font-medium px-4 min-h-[44px] rounded-lg transition-colors">
           <Download size={16} /> Export CSV
         </button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total records" value={overview?.totalRecords ?? '—'} />
-        <StatCard label="Eligible" value={overview?.totalPresent ?? '—'} tone="eligible" />
-        <StatCard label="Not eligible" value={overview?.totalNotEligible ?? '—'} tone="ineligible" />
-        <StatCard label="Pending sync" value={overview?.totalPending ?? '—'} tone="pending" />
+        <StatCard label="Total records" value={overview?.totalRecords ?? 0} tone="brand" loading={loading} />
+        <StatCard label="Eligible" value={overview?.totalPresent ?? 0} tone="eligible" loading={loading} />
+        <StatCard label="Not eligible" value={overview?.totalNotEligible ?? 0} tone="ineligible" loading={loading} />
+        <StatCard label="Pending sync" value={overview?.totalPending ?? 0} tone="pending" loading={loading} />
       </div>
 
       {byDept.length > 0 && (
-        <div className="bg-white rounded-2xl border border-ledger-100 shadow-card p-6">
-          <h2 className="font-display text-lg text-ledger-900 mb-4">Attendance by faculty / department</h2>
+        <div className="bg-white rounded-xl border border-ledger-100 shadow-card p-6">
+          <h2 className="font-display font-semibold tracking-tight text-lg text-ledger-900 mb-4">Attendance by faculty / department</h2>
           <div className="space-y-3">
             {byDept.map((d) => {
               const total = d.total || 1;
@@ -120,7 +130,7 @@ const Reports = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-ledger-100 shadow-card">
+      <div className="bg-white rounded-xl border border-ledger-100 shadow-card">
         <div className="flex flex-wrap items-center gap-3 px-6 py-4 border-b border-ledger-100">
           <select value={examFilter} onChange={(e) => setExamFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-ledger-200 text-sm">
             <option value="">All examinations</option>
@@ -144,12 +154,13 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-ledger-100">
-              {!loading && records.length === 0 && (
+              {recordsLoading && <TableSkeleton rows={5} cols={5} />}
+              {!recordsLoading && records.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-10 text-center text-ledger-400">
                   <FileBarChart2 className="mx-auto mb-2" size={22} />No attendance records match these filters.
                 </td></tr>
               )}
-              {records.map((r) => (
+              {!recordsLoading && records.map((r) => (
                 <tr key={r._id} className="hover:bg-ledger-50/60">
                   <td className="px-6 py-4">
                     <p className="font-medium text-ledger-900">{r.student?.fullName}</p>
@@ -166,11 +177,11 @@ const Reports = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-ledger-100 shadow-card">
+      <div className="bg-white rounded-xl border border-ledger-100 shadow-card">
         <div className="flex items-center justify-between px-6 py-4 border-b border-ledger-100">
           <div>
-            <h2 className="font-display text-lg text-ledger-900">QR scan records</h2>
-            <p className="text-ledger-400 text-xs mt-0.5">Audit history showing which Invigilator scanned each QR code.</p>
+            <h2 className="font-display font-semibold tracking-tight text-lg text-ledger-900">Attendance scan records</h2>
+            <p className="text-ledger-400 text-xs mt-0.5">Audit history showing which invigilator scanned each Student ID (OCR or legacy QR).</p>
           </div>
           <QrCode size={18} className="text-ledger-400" />
         </div>
@@ -179,7 +190,7 @@ const Reports = () => {
             value={qrStudentFilter}
             onChange={(e) => setQrStudentFilter(e.target.value)}
             placeholder="Student ID"
-            className="px-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-seal/40"
+            className="px-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40"
           />
           <select value={qrInvigilatorFilter} onChange={(e) => setQrInvigilatorFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-ledger-200 text-sm">
             <option value="">All invigilators</option>
@@ -197,7 +208,7 @@ const Reports = () => {
             type="date"
             value={qrDateFilter}
             onChange={(e) => setQrDateFilter(e.target.value)}
-            className="px-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-seal/40"
+            className="px-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40"
           />
         </div>
         <div className="overflow-x-auto">
@@ -212,12 +223,13 @@ const Reports = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-ledger-100">
-              {qrRecords.length === 0 && (
+              {qrLoading && <TableSkeleton rows={5} cols={5} />}
+              {!qrLoading && qrRecords.length === 0 && (
                 <tr><td colSpan={5} className="px-6 py-10 text-center text-ledger-400">
-                  <QrCode className="mx-auto mb-2" size={22} />No QR scan records match these filters.
+                  <QrCode className="mx-auto mb-2" size={22} />No attendance scan records match these filters.
                 </td></tr>
               )}
-              {qrRecords.map((r) => (
+              {!qrLoading && qrRecords.map((r) => (
                 <tr key={r._id} className="hover:bg-ledger-50/60">
                   <td className="px-6 py-4">
                     <p className="font-medium text-ledger-900">{r.student?.fullName || 'Unknown student'}</p>

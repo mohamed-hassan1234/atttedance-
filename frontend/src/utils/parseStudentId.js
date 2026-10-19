@@ -10,9 +10,13 @@
 // Mirror of extractStudentId in backend/src/utils/qrPayload.js, which is
 // authoritative and re-parses every request. This copy exists for instant
 // client-side rejection and so offline scans can be queued by Student ID.
+//
+// The Student ID format itself (2-4 letters then 3-8 digits, e.g. HU1234) is
+// defined once in studentIdParser.js and imported here, so the QR/manual-entry
+// path and the OCR path can never drift onto two different formats.
 
-// Student ID format: 2-4 letters followed by 3-8 digits, e.g. HU1234.
-const STUDENT_ID_PATTERN = /^[A-Z]{2,4}\d{3,8}$/;
+import { STUDENT_ID_PATTERN } from './studentIdParser.js';
+
 const STUDENT_ID_IN_TEXT = /(?<![A-Z0-9])[A-Z]{2,4}\d{3,8}(?![A-Z0-9])/g;
 const MAX_PAYLOAD_LENGTH = 2048;
 const INVALID = { ok: false, error: 'No Student ID found.' };

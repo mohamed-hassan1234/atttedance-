@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, KeyRound, UserX, UserCheck, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Pencil, KeyRound, UserX, UserCheck, Search, Users2, ShieldCheck } from 'lucide-react';
 import api from '../services/api';
 import Modal from '../components/Modal';
 import Badge from '../components/Badge';
+import StatCard from '../components/StatCard';
+import TableSkeleton from '../components/TableSkeleton';
+import { useToast } from '../context/ToastContext';
 
 const emptyForm = {
   fullName: '',
@@ -17,6 +20,7 @@ const emptyForm = {
 };
 
 const Users = () => {
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -40,6 +44,13 @@ const Users = () => {
   };
 
   useEffect(() => { load(); }, [search, statusFilter]); // eslint-disable-line
+
+  // Real counts from the currently loaded (filtered) list — not mock data.
+  const stats = useMemo(() => ({
+    total: users.length,
+    active: users.filter((u) => u.isActive).length,
+    admins: users.filter((u) => u.role === 'admin').length,
+  }), [users]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -92,38 +103,57 @@ const Users = () => {
         });
       }
       setModalOpen(false);
+      toast.success(editingId ? 'User updated.' : 'Invigilator registered.');
       load();
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not save user.');
+      const message = err.response?.data?.message || 'Could not save user.';
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
   const toggleActive = async (u) => {
-    await api.put(`/users/${u._id}`, { isActive: !u.isActive });
-    load();
+    try {
+      await api.put(`/users/${u._id}`, { isActive: !u.isActive });
+      toast.success(`${u.fullName} is now ${u.isActive ? 'deactivated' : 'active'}.`);
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update this account.');
+    }
   };
 
   const handleResetPassword = async () => {
-    await api.put(`/users/${pwModal}/reset-password`, { newPassword });
-    setPwModal(null);
-    setNewPassword('');
+    try {
+      await api.put(`/users/${pwModal}/reset-password`, { newPassword });
+      toast.success('Password reset.');
+      setPwModal(null);
+      setNewPassword('');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not reset this password.');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-2xl text-ledger-900">Manage users</h1>
+          <h1 className="font-display font-semibold tracking-tight text-2xl text-ledger-900">Manage users</h1>
           <p className="text-ledger-400 text-sm mt-1">Create and manage Admin and Invigilator accounts.</p>
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-ledger-900 hover:bg-ledger-800 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors">
+        <button onClick={openCreate} className="flex items-center gap-2 bg-brand hover:bg-brand-deep text-white text-sm font-medium px-4 min-h-[44px] rounded-lg transition-colors">
           <Plus size={16} /> Register Invigilator
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-ledger-100 shadow-card overflow-x-auto">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard label="Users (in view)" value={stats.total} icon={Users2} tone="brand" loading={loading} />
+        <StatCard label="Active" value={stats.active} tone="eligible" loading={loading} />
+        <StatCard label="Admins" value={stats.admins} icon={ShieldCheck} loading={loading} />
+      </div>
+
+      <div className="bg-white rounded-xl border border-ledger-100 shadow-card overflow-x-auto">
         <div className="flex flex-col sm:flex-row gap-3 px-6 py-4 border-b border-ledger-100">
           <div className="relative flex-1">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ledger-400" />
@@ -131,7 +161,7 @@ const Users = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name, username, email, or invigilator ID"
-              className="w-full pl-9 pr-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-seal/40"
+              className="w-full pl-9 pr-3 py-2 rounded-lg border border-ledger-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand/40"
             />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 rounded-lg border border-ledger-200 text-sm">
@@ -152,6 +182,12 @@ const Users = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-ledger-100">
+            {loading && <TableSkeleton rows={5} cols={6} />}
+            {!loading && users.length === 0 && (
+              <tr><td colSpan={6} className="px-6 py-10 text-center text-ledger-400">
+                <Users2 className="mx-auto mb-2" size={22} />No users match your search or filter.
+              </td></tr>
+            )}
             {!loading && users.map((u) => (
               <tr key={u._id} className="hover:bg-ledger-50/60">
                 <td className="px-6 py-4 font-medium text-ledger-900">{u.fullName}</td>
@@ -163,13 +199,13 @@ const Users = () => {
                   <p className="font-mono text-xs">{u.invigilatorId || '—'}</p>
                   <p className="text-ledger-400 text-xs">{u.phone || 'No phone'}</p>
                 </td>
-                <td className="px-6 py-4"><Badge tone={u.role === 'admin' ? 'seal' : 'neutral'}>{u.role}</Badge></td>
+                <td className="px-6 py-4"><Badge tone={u.role === 'admin' ? 'brand' : 'neutral'}>{u.role}</Badge></td>
                 <td className="px-6 py-4"><Badge tone={u.isActive ? 'eligible' : 'ineligible'}>{u.isActive ? 'Active' : 'Deactivated'}</Badge></td>
                 <td className="px-6 py-4">
                   <div className="flex justify-end gap-2">
-                    <button onClick={() => openEdit(u)} title="Edit" className="p-2 rounded-lg hover:bg-ledger-100 text-ledger-500"><Pencil size={15} /></button>
-                    <button onClick={() => setPwModal(u._id)} title="Reset password" className="p-2 rounded-lg hover:bg-ledger-100 text-ledger-500"><KeyRound size={15} /></button>
-                    <button onClick={() => toggleActive(u)} title={u.isActive ? 'Deactivate' : 'Reactivate'} className="p-2 rounded-lg hover:bg-ledger-100 text-ledger-500">
+                    <button onClick={() => openEdit(u)} title="Edit" className="p-2.5 rounded-lg hover:bg-ledger-100 text-ledger-500"><Pencil size={15} /></button>
+                    <button onClick={() => setPwModal(u._id)} title="Reset password" className="p-2.5 rounded-lg hover:bg-ledger-100 text-ledger-500"><KeyRound size={15} /></button>
+                    <button onClick={() => toggleActive(u)} title={u.isActive ? 'Deactivate' : 'Reactivate'} className="p-2.5 rounded-lg hover:bg-ledger-100 text-ledger-500">
                       {u.isActive ? <UserX size={15} /> : <UserCheck size={15} />}
                     </button>
                   </div>
@@ -186,8 +222,8 @@ const Users = () => {
         title={editingId ? 'Edit user' : 'Register Invigilator'}
         footer={
           <>
-            <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white disabled:opacity-60">
+            <button onClick={() => setModalOpen(false)} className="px-4 min-h-[40px] rounded-lg text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="px-4 min-h-[40px] rounded-lg text-sm font-medium bg-brand hover:bg-brand-deep text-white disabled:opacity-60">
               {saving ? 'Saving…' : 'Save user'}
             </button>
           </>
@@ -222,7 +258,7 @@ const Users = () => {
               type="checkbox"
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-              className="rounded border-ledger-200 text-seal focus:ring-seal/40"
+              className="rounded border-ledger-200 text-seal focus:ring-brand/40"
             />
             Active account
           </label>
@@ -235,8 +271,8 @@ const Users = () => {
         title="Reset password"
         footer={
           <>
-            <button onClick={() => setPwModal(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
-            <button onClick={handleResetPassword} className="px-4 py-2 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white">Reset password</button>
+            <button onClick={() => setPwModal(null)} className="px-4 min-h-[40px] rounded-lg text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
+            <button onClick={handleResetPassword} className="px-4 min-h-[40px] rounded-lg text-sm font-medium bg-brand hover:bg-brand-deep text-white">Reset password</button>
           </>
         }
       >
@@ -255,7 +291,7 @@ const Field = ({ label, value, onChange, type = 'text', required, disabled }) =>
       disabled={disabled}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full px-3.5 py-2.5 rounded-xl border border-ledger-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-seal/40 disabled:bg-ledger-50 disabled:text-ledger-400"
+      className="w-full px-3.5 py-2.5 rounded-xl border border-ledger-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:bg-ledger-50 disabled:text-ledger-400"
     />
   </div>
 );

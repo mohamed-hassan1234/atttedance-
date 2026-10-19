@@ -1,19 +1,20 @@
 import { X } from 'lucide-react';
 
+// Bottom sheet on phones, centered dialog from sm: up.
 const Modal = ({ open, onClose, title, children, footer, maxWidth = 'max-w-lg' }) => {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div className="absolute inset-0 bg-ledger-950/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative bg-white rounded-2xl shadow-xl w-full ${maxWidth} fade-up max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-ledger-100">
-          <h3 className="font-display text-lg text-ledger-900">{title}</h3>
-          <button onClick={onClose} className="text-ledger-400 hover:text-ledger-900 transition-colors">
+      <div role="dialog" aria-modal="true" aria-label={title} className={`relative flex max-h-[92vh] w-full ${maxWidth} fade-up flex-col rounded-t-2xl bg-white shadow-xl sm:max-h-[90vh] sm:rounded-xl`}>
+        <div className="flex items-center justify-between border-b border-ledger-100 px-5 py-4 sm:px-6">
+          <h3 className="font-display text-lg font-semibold tracking-tight text-brand-dark">{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100">
             <X size={18} />
           </button>
         </div>
-        <div className="px-6 py-5 overflow-y-auto scrollbar-thin">{children}</div>
-        {footer && <div className="px-6 py-4 border-t border-ledger-100 flex justify-end gap-2">{footer}</div>}
+        <div className="scrollbar-thin overflow-y-auto px-5 py-5 sm:px-6">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-ledger-100 bg-slate-50/60 px-5 py-4 sm:px-6">{footer}</div>}
       </div>
     </div>
   );

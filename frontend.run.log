@@ -1,0 +1,65 @@
+
+> exam-attendance-frontend@1.0.0 dev
+> vite --host localhost
+
+Re-optimizing dependencies because lockfile has changed
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m983[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttps://localhost:[1m5173[22m/[39m
+[2m00:22:40[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/HormuudLogo.jsx, /src/index.css[22m
+[2m00:22:40[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/HormuudLogo.jsx, /src/index.css[22m
+[2m00:23:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx, /src/index.css[22m
+[2m00:35:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m00:35:18[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.jsx, /src/index.css[22m
+[2m00:37:23[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/design-proposal/ui.jsx, /src/index.css[22m
+[2m00:37:24[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/design-proposal/ui.jsx[22m Could not Fast Refresh ("PreviewContext" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m00:37:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/design-proposal/ProposalHub.jsx, /src/design-proposal/PreviewFrame.jsx, /src/design-proposal/Shell.jsx, /src/design-proposal/screens/LoginScreen.jsx, /src/design-proposal/screens/ReportsScreen.jsx, /src/design-proposal/screens/ScannerScreen.jsx, /src/design-proposal/screens/Dashboards.jsx, /src/design-proposal/screens/Management.jsx[22m
+[2m00:37:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/design-proposal/screens/Dashboards.jsx, /src/index.css[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mtailwind.config.js[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/AttendanceResultCard.jsx, /src/index.css[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Modal.jsx, /src/index.css[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/OcrAttendanceScanner.jsx, /src/index.css[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/OcrCameraView.jsx, /src/index.css[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/QrAttendanceScanner.jsx[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2msrc/components/QrScanner.jsx[22m
+[2m00:45:48[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/StatCard.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/layouts/AppLayout.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Assignments.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Classes.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Exams.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Faculties.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Reports.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ScanAttendance.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Students.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Users.jsx, /src/index.css[22m
+[2m00:45:49[22m [36m[1m[vite][22m[39m [32mpage reload [39m[2mindex.html[22m
+[2m00:45:51[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/AttendanceResultCard.jsx[22m Could not Fast Refresh ("AUTO_RESET_STATES" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[2m00:45:51[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/components/OcrAttendanceScanner.jsx[22m
+[2m00:46:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Badge.jsx, /src/index.css[22m
+[2m00:46:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/StatCard.jsx, /src/index.css[22m
+[2m00:46:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/Modal.jsx, /src/index.css[22m
+[2m00:46:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/layouts/AppLayout.jsx, /src/index.css[22m
+[2m00:46:50[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx, /src/index.css[22m
+[2m00:47:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Assignments.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Classes.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Exams.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Faculties.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Reports.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ScanAttendance.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Students.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Users.jsx, /src/index.css[22m
+[2m00:47:32[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ConfirmDialog.jsx, /src/index.css[22m
+[2m00:47:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Assignments.jsx, /src/index.css[22m
+[2m00:47:52[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Classes.jsx, /src/index.css[22m
+[2m00:47:53[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Dashboard.jsx, /src/index.css[22m
+[2m00:47:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Exams.jsx, /src/index.css[22m
+[2m00:47:54[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Faculties.jsx, /src/index.css[22m
+[2m00:47:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Login.jsx, /src/index.css[22m
+[2m00:47:55[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Reports.jsx, /src/index.css[22m
+[2m00:47:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/ScanAttendance.jsx, /src/index.css[22m
+[2m00:47:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Students.jsx, /src/index.css[22m
+[2m00:47:57[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/Users.jsx, /src/index.css[22m

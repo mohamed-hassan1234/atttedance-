@@ -153,13 +153,13 @@ const QrScanner = ({ onDecode, onStatus, paused = false }) => {
     <div className="space-y-3">
       <div
         ref={containerRef}
-        className="relative w-full overflow-hidden rounded-2xl bg-ledger-950 aspect-[3/4] max-h-[65vh] sm:aspect-[4/3] landscape:aspect-[16/9]"
+        className="relative w-full overflow-hidden rounded-xl bg-ledger-950 aspect-[3/4] max-h-[65vh] sm:aspect-[4/3] landscape:aspect-[16/9]"
       >
         <div id={ids.current.view} className="qr-camera-frame absolute inset-0" />
 
         {scanning && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center p-4" aria-hidden="true">
-            <div className={`relative aspect-square w-[68%] max-w-[320px] rounded-2xl border-2 ${paused ? 'border-white/30' : 'border-white/70'} shadow-[0_0_0_9999px_rgba(11,18,32,0.45)] transition-colors`}>
+            <div className={`relative aspect-square w-[68%] max-w-[320px] rounded-xl border-2 ${paused ? 'border-white/30' : 'border-white/70'} shadow-[0_0_0_9999px_rgba(11,18,32,0.45)] transition-colors`}>
               <span className="absolute -left-0.5 -top-0.5 h-8 w-8 rounded-tl-2xl border-l-4 border-t-4 border-seal" />
               <span className="absolute -right-0.5 -top-0.5 h-8 w-8 rounded-tr-2xl border-r-4 border-t-4 border-seal" />
               <span className="absolute -bottom-0.5 -left-0.5 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-seal" />

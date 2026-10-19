@@ -3,8 +3,11 @@ import { UserCog, CalendarClock } from 'lucide-react';
 import api from '../services/api';
 import Modal from '../components/Modal';
 import Badge from '../components/Badge';
+import TableSkeleton from '../components/TableSkeleton';
+import { useToast } from '../context/ToastContext';
 
 const Assignments = () => {
+  const toast = useToast();
   const [exams, setExams] = useState([]);
   const [invigilators, setInvigilators] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,10 +44,13 @@ const Assignments = () => {
     setError('');
     try {
       await api.put(`/exams/${modalExam._id}`, { assignedInvigilators: selected });
+      toast.success(`Invigilators updated for ${modalExam.examName}.`);
       setModalExam(null);
       load();
     } catch (err) {
-      setError(err.response?.data?.message || 'Could not save assignment.');
+      const message = err.response?.data?.message || 'Could not save assignment.';
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -53,11 +59,11 @@ const Assignments = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl text-ledger-900">Assignments</h1>
+        <h1 className="font-display font-semibold tracking-tight text-2xl text-ledger-900">Assignments</h1>
         <p className="text-ledger-400 text-sm mt-1">Assign invigilators to examinations — one exam, many invigilators.</p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-ledger-100 shadow-card overflow-x-auto">
+      <div className="bg-white rounded-xl border border-ledger-100 shadow-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-ledger-400 text-xs uppercase tracking-wide border-b border-ledger-100">
@@ -69,12 +75,13 @@ const Assignments = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-ledger-100">
+            {loading && <TableSkeleton rows={4} cols={5} />}
             {!loading && exams.length === 0 && (
               <tr><td colSpan={5} className="px-6 py-10 text-center text-ledger-400">
                 <CalendarClock className="mx-auto mb-2" size={22} />No examinations yet.
               </td></tr>
             )}
-            {exams.map((exam) => (
+            {!loading && exams.map((exam) => (
               <tr key={exam._id} className="hover:bg-ledger-50/60">
                 <td className="px-6 py-4">
                   <p className="font-medium text-ledger-900">{exam.examName}</p>
@@ -114,8 +121,8 @@ const Assignments = () => {
         title={modalExam ? `Assign invigilators — ${modalExam.examName}` : ''}
         footer={
           <>
-            <button onClick={() => setModalExam(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white disabled:opacity-60">
+            <button onClick={() => setModalExam(null)} className="px-4 min-h-[40px] rounded-lg text-sm font-medium text-ledger-500 hover:bg-ledger-100">Cancel</button>
+            <button onClick={handleSave} disabled={saving} className="px-4 min-h-[40px] rounded-lg text-sm font-medium bg-brand hover:bg-brand-deep text-white disabled:opacity-60">
               {saving ? 'Saving…' : 'Save assignment'}
             </button>
           </>

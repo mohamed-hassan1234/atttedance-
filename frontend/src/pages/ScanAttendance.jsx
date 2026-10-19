@@ -5,7 +5,7 @@ import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import EligibilityStamp from '../components/EligibilityStamp';
 import Badge from '../components/Badge';
-import QrAttendanceScanner from '../components/QrAttendanceScanner';
+import OcrAttendanceScanner from '../components/OcrAttendanceScanner';
 import { addToQueue, getQueue, syncQueue } from '../services/offlineQueue';
 
 const ScanAttendance = () => {
@@ -24,7 +24,7 @@ const ScanAttendance = () => {
   const [roster, setRoster] = useState([]);
   const [attendedIds, setAttendedIds] = useState(new Set());
   const [rosterLoading, setRosterLoading] = useState(false);
-  const [mode, setMode] = useState('qr'); // 'qr' | 'manual'
+  const [mode, setMode] = useState('ocr'); // 'ocr' | 'manual'
   const [scanPreview, setScanPreview] = useState(null); // { studentId, student, scanStatus, message }
   const [previewLoading, setPreviewLoading] = useState(false);
   const [recentScans, setRecentScans] = useState([]);
@@ -166,9 +166,9 @@ const ScanAttendance = () => {
     setScanPreview(null);
   };
 
-  // Called by the QR scanner after every scan. The server has already recorded
+  // Called by the OCR scanner after every scan. The server has already recorded
   // (or refused) the attendance; this only refreshes what the page displays.
-  const handleQrOutcome = ({ kind, student, queued }) => {
+  const handleScanOutcome = ({ kind, student, queued }) => {
     if (queued) {
       setQueueCount(getQueue().length);
       setSessionCount((c) => c + 1);
@@ -195,8 +195,8 @@ const ScanAttendance = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-2xl text-ledger-900">Scan attendance</h1>
-          <p className="text-ledger-400 text-sm mt-1">Choose your exam, then point the camera at each student's ID card — it reads only the Student ID. Attendance is recorded and checked on the server.</p>
+          <h1 className="font-display font-semibold tracking-tight text-2xl text-ledger-900">Scan attendance</h1>
+          <p className="text-ledger-400 text-sm mt-1">Choose your exam, then point the camera at each student's ID card — OCR reads only the printed Student ID. Attendance is recorded and checked on the server.</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge tone="neutral"><Users2 size={13} /> {sessionCount} recorded this session</Badge>
@@ -221,7 +221,7 @@ const ScanAttendance = () => {
       )}
 
       <div className="grid lg:grid-cols-5 gap-6">
-        <div className={`${mode === 'manual' ? 'lg:col-span-3' : 'lg:col-span-5 lg:max-w-2xl lg:mx-auto lg:w-full'} bg-white rounded-2xl border border-ledger-100 shadow-card p-4 sm:p-6 space-y-5`}>
+        <div className={`${mode === 'manual' ? 'lg:col-span-3' : 'lg:col-span-5 lg:max-w-2xl lg:mx-auto lg:w-full'} bg-white rounded-xl border border-ledger-100 shadow-card p-4 sm:p-6 space-y-5`}>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wide text-ledger-400 mb-1.5">
               Examination
@@ -229,7 +229,7 @@ const ScanAttendance = () => {
             <select
               value={examId}
               onChange={(e) => setExamId(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl border border-ledger-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-seal/40"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-ledger-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand/40"
             >
               <option value="">Select examination…</option>
               {exams.map((exam) => (
@@ -246,7 +246,7 @@ const ScanAttendance = () => {
           </div>
 
           <div role="tablist" aria-label="Attendance method" className="grid grid-cols-2 gap-1 rounded-xl bg-ledger-50 p-1">
-            {[['qr', 'Scan ID card', Camera], ['manual', 'Enter Student ID', Keyboard]].map(([key, label, Icon]) => (
+            {[['ocr', 'Scan ID card', Camera], ['manual', 'Enter Student ID', Keyboard]].map(([key, label, Icon]) => (
               <button
                 key={key}
                 type="button"
@@ -260,8 +260,8 @@ const ScanAttendance = () => {
             ))}
           </div>
 
-          {mode === 'qr' && (
-            <QrAttendanceScanner exam={selectedExam} isOnline={isOnline} onOutcome={handleQrOutcome} />
+          {mode === 'ocr' && (
+            <OcrAttendanceScanner exam={selectedExam} isOnline={isOnline} onOutcome={handleScanOutcome} />
           )}
 
           {mode === 'manual' && (
@@ -276,13 +276,13 @@ const ScanAttendance = () => {
                   value={studentIdInput}
                   onChange={(e) => setStudentIdInput(e.target.value)}
                   placeholder="Type Student ID (e.g. HU1234)"
-                  className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-ledger-200 bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-seal/40"
+                  className="w-full pl-10 pr-3.5 py-3 rounded-xl border border-ledger-200 bg-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand/40"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex items-center justify-center gap-2 bg-ledger-900 hover:bg-ledger-800 text-white font-medium text-sm px-6 py-3 rounded-xl transition-colors disabled:opacity-60"
+                className="flex items-center justify-center gap-2 bg-brand hover:bg-brand-deep text-white font-medium text-sm px-6 py-3 rounded-xl transition-colors disabled:opacity-60"
               >
                 <ScanLine size={16} /> {loading ? 'Checking…' : 'Verify'}
               </button>
@@ -298,7 +298,7 @@ const ScanAttendance = () => {
         </div>
 
         {mode === 'manual' && (
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-ledger-100 shadow-card p-6 flex flex-col items-center justify-center text-center min-h-[280px]">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-ledger-100 shadow-card p-6 flex flex-col items-center justify-center text-center min-h-[280px]">
           {previewLoading && (
             <p className="text-ledger-400 text-sm">Looking up student…</p>
           )}
@@ -310,14 +310,14 @@ const ScanAttendance = () => {
                   {scanPreview.student.photoUrl ? (
                     <img src={scanPreview.student.photoUrl} alt="" className="w-20 h-20 rounded-full object-cover border border-ledger-100" />
                   ) : (
-                    <div className="w-20 h-20 rounded-full bg-ledger-100 text-ledger-500 flex items-center justify-center font-display text-2xl">
+                    <div className="w-20 h-20 rounded-full bg-ledger-100 text-ledger-500 flex items-center justify-center font-display font-semibold tracking-tight text-2xl">
                       {scanPreview.student.fullName?.charAt(0)}
                     </div>
                   )}
                   <Badge tone={scanPreview.scanStatus === 'Successful' ? 'eligible' : 'ineligible'}>
                     <CheckCircle2 size={13} /> {scanPreview.scanStatus === 'Successful' ? 'Valid Student' : scanPreview.scanStatus}
                   </Badge>
-                  <p className="font-display text-lg text-ledger-900">{scanPreview.student.fullName}</p>
+                  <p className="font-display font-semibold tracking-tight text-lg text-ledger-900">{scanPreview.student.fullName}</p>
                   <p className="text-ledger-400 text-xs font-mono mt-0.5">{scanPreview.student.studentId}</p>
                   <p className="text-ledger-400 text-xs mt-1">
                     {scanPreview.student.faculty} · {scanPreview.student.department}
@@ -339,7 +339,7 @@ const ScanAttendance = () => {
               ) : (
                 <div>
                   <Badge tone="ineligible">{scanPreview.scanStatus}</Badge>
-                  <p className="font-display text-lg text-ledger-900 mt-3">Student not verified</p>
+                  <p className="font-display font-semibold tracking-tight text-lg text-ledger-900 mt-3">Student not verified</p>
                   <p className="text-ledger-400 text-xs mt-1">{scanPreview.message}</p>
                 </div>
               )}
@@ -349,7 +349,7 @@ const ScanAttendance = () => {
               <div className="flex items-center gap-2 w-full">
                 <button
                   onClick={clearPreview}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium text-ledger-500 border border-ledger-200 hover:bg-ledger-50"
+                  className="flex-1 px-4 min-h-[44px] rounded-lg text-sm font-medium text-ledger-500 border border-ledger-200 hover:bg-ledger-50"
                 >
                   Check another
                 </button>
@@ -357,7 +357,7 @@ const ScanAttendance = () => {
                   <button
                     onClick={confirmPreview}
                     disabled={loading}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium bg-ledger-900 hover:bg-ledger-800 text-white disabled:opacity-60"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-lg text-sm font-medium bg-brand hover:bg-brand-deep text-white disabled:opacity-60"
                   >
                     Mark Present <ArrowRight size={15} />
                   </button>
@@ -365,7 +365,7 @@ const ScanAttendance = () => {
                 {scanPreview.student?.blocked && (
                   <button
                     disabled
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium bg-ledger-100 text-ledger-400 cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 min-h-[44px] rounded-lg text-sm font-medium bg-ledger-100 text-ledger-400 cursor-not-allowed"
                   >
                     Rejected — cannot mark present
                   </button>
@@ -381,7 +381,7 @@ const ScanAttendance = () => {
             <div className="flex flex-col items-center gap-4">
               <EligibilityStamp status={result.eligibilityStatus} size="lg" />
               <div>
-                <p className="font-display text-lg text-ledger-900">{result.student.fullName}</p>
+                <p className="font-display font-semibold tracking-tight text-lg text-ledger-900">{result.student.fullName}</p>
                 <p className="text-ledger-400 text-xs font-mono mt-0.5">{result.student.studentId}</p>
                 {(result.student.faculty || result.student.department) && (
                   <p className="text-ledger-400 text-xs mt-1">
@@ -398,10 +398,10 @@ const ScanAttendance = () => {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-ledger-100 shadow-card overflow-hidden">
+      <div className="bg-white rounded-xl border border-ledger-100 shadow-card overflow-hidden">
         <div className="px-6 py-4 border-b border-ledger-100 flex items-center justify-between">
           <div>
-            <h2 className="font-display text-lg text-ledger-900">Recent QR scans</h2>
+            <h2 className="font-display font-semibold tracking-tight text-lg text-ledger-900">Recent attendance scans</h2>
             <p className="text-ledger-400 text-xs mt-0.5">
               {user?.role === 'invigilator' ? 'Only scans made by your account are shown here.' : 'Recent QR verification attempts across all invigilators.'}
             </p>
@@ -439,10 +439,10 @@ const ScanAttendance = () => {
       </div>
 
       {examId && (
-        <div className="bg-white rounded-2xl border border-ledger-100 shadow-card overflow-hidden">
+        <div className="bg-white rounded-xl border border-ledger-100 shadow-card overflow-hidden">
           <div className="px-6 py-4 border-b border-ledger-100 flex items-center justify-between">
             <div>
-              <h2 className="font-display text-lg text-ledger-900">Students taking this exam</h2>
+              <h2 className="font-display font-semibold tracking-tight text-lg text-ledger-900">Students taking this exam</h2>
               <p className="text-ledger-400 text-xs mt-0.5">
                 {selectedExam?.faculty} · {selectedExam?.department} — matched from the student directory.
               </p>

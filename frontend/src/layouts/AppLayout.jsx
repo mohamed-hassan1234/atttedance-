@@ -1,15 +1,22 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, ScanLine, CalendarClock, Users, GraduationCap,
-  FileBarChart2, LogOut, ShieldCheck, Landmark, School, UserCog,
+  FileBarChart2, LogOut, Landmark, School, UserCog, Menu, X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ConnectionBadge from '../components/ConnectionBadge';
+import HormuudLogo from '../components/HormuudLogo';
+import ToastViewport from '../components/ToastViewport';
 
 const AppLayout = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [drawer, setDrawer] = useState(false);
   const isAdmin = user?.role === 'admin';
+
+  useEffect(() => { setDrawer(false); }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -18,87 +25,109 @@ const AppLayout = () => {
 
   const navItem = (to, label, Icon, end = false) => (
     <NavLink
+      key={to}
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-          isActive
-            ? 'bg-ledger-800 text-white'
-            : 'text-ledger-200 hover:bg-ledger-800/60 hover:text-white'
+        `relative flex min-h-[44px] items-center gap-3 rounded-lg px-3 text-sm font-medium transition-colors ${
+          isActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'
         }`
       }
     >
-      <Icon size={17} strokeWidth={1.8} />
-      {label}
+      {({ isActive }) => (
+        <>
+          {isActive && <span className="absolute -left-3 top-2 h-7 w-1 rounded-r bg-brand" aria-hidden="true" />}
+          <Icon size={18} strokeWidth={isActive ? 2.2 : 1.8} />
+          {label}
+        </>
+      )}
     </NavLink>
   );
 
+  const sidebar = (
+    <div className="flex h-full flex-col bg-[#0B1220] px-3 py-5">
+      <div className="flex items-center justify-between px-2 pb-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <HormuudLogo size={40} />
+          <div className="min-w-0 leading-tight">
+            <p className="text-[15px] font-bold tracking-tight text-white">SEAMS</p>
+            <p className="truncate text-[11px] text-slate-400">Hormuud University</p>
+          </div>
+        </div>
+      </div>
+      <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        {isAdmin ? 'Administration' : 'Invigilation'}
+      </p>
+      <nav className="flex flex-col gap-1" aria-label="Primary">
+        {navItem('/', 'Dashboard', LayoutDashboard, true)}
+        {navItem('/scan', isAdmin ? 'Scan Attendance' : 'Scan Student ID', ScanLine)}
+        {navItem('/exams', 'Examinations', CalendarClock)}
+        {isAdmin && navItem('/students', 'Students', GraduationCap)}
+        {isAdmin && navItem('/faculties', 'Faculties', Landmark)}
+        {isAdmin && navItem('/classes', 'Classes', School)}
+        {isAdmin && navItem('/assignments', 'Assignments', UserCog)}
+        {isAdmin && navItem('/users', 'Manage Users', Users)}
+        {isAdmin && navItem('/reports', 'Reports', FileBarChart2)}
+      </nav>
+      <div className="mt-auto border-t border-white/10 pt-4">
+        <div className="mb-2 flex items-center gap-3 px-2">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold uppercase text-white">
+            {user?.fullName?.charAt(0)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-white">{user?.fullName}</p>
+            <p className="text-xs capitalize text-slate-400">{user?.role}</p>
+          </div>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="flex min-h-[44px] w-full items-center gap-2.5 rounded-lg px-3 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+        >
+          <LogOut size={17} /> Sign out
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen flex bg-ledger-50">
-      {/* Sidebar */}
-      <aside className="hidden md:flex flex-col w-64 bg-ledger-950 shrink-0 px-4 py-6">
-        <div className="flex items-center gap-2.5 px-2 mb-8">
-          <div className="w-9 h-9 rounded-lg bg-seal flex items-center justify-center text-ledger-950">
-            <ShieldCheck size={20} strokeWidth={2} />
-          </div>
-          <div className="leading-tight">
-            <p className="font-display text-white text-[15px]">SEAMS</p>
-            <p className="text-ledger-400 text-[11px]">Exam Attendance</p>
+    <div className="flex min-h-screen bg-brand-bg">
+      <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 lg:block">{sidebar}</aside>
+
+      {drawer && (
+        <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setDrawer(false)}>
+          <div className="absolute inset-0 bg-ledger-950/60" />
+          <div className="absolute inset-y-0 left-0 w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setDrawer(false)} aria-label="Close menu" className="absolute right-2 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10">
+              <X size={20} />
+            </button>
+            {sidebar}
           </div>
         </div>
+      )}
 
-        <nav className="flex flex-col gap-1">
-          {navItem('/', 'Dashboard', LayoutDashboard, true)}
-          {navItem('/scan', isAdmin ? 'Scan Attendance' : 'Scan Student QR', ScanLine)}
-          {navItem('/exams', 'Examinations', CalendarClock)}
-          {isAdmin && navItem('/students', 'Students', GraduationCap)}
-          {isAdmin && navItem('/faculties', 'Faculties', Landmark)}
-          {isAdmin && navItem('/classes', 'Classes', School)}
-          {isAdmin && navItem('/assignments', 'Assignments', UserCog)}
-          {isAdmin && navItem('/users', 'Manage Users', Users)}
-          {isAdmin && navItem('/reports', 'Reports', FileBarChart2)}
-        </nav>
-
-        <div className="mt-auto pt-6 border-t border-ledger-800/80">
-          <div className="px-2 mb-3">
-            <p className="text-white text-sm font-medium">{user?.fullName}</p>
-            <p className="text-ledger-400 text-xs capitalize">{user?.role}</p>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6">
+          <div className="flex items-center gap-3 lg:hidden">
+            <button onClick={() => setDrawer(true)} aria-label="Open menu" className="flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100">
+              <Menu size={20} />
+            </button>
+            <HormuudLogo size={34} />
+            <span className="text-[15px] font-bold tracking-tight text-brand-dark">SEAMS</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-sm text-ledger-200 hover:bg-ledger-800/60 hover:text-white transition-colors"
-          >
-            <LogOut size={16} /> Sign out
-          </button>
-        </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 border-b border-ledger-100 bg-white/80 backdrop-blur px-4 md:px-8 flex items-center justify-between sticky top-0 z-30">
-          <div className="md:hidden font-display text-lg text-ledger-900">SEAMS</div>
-          <div className="hidden md:block" />
+          <div className="hidden lg:block" />
           <div className="flex items-center gap-3">
             <ConnectionBadge />
-            <div className="w-8 h-8 rounded-full bg-ledger-800 text-white flex items-center justify-center text-xs font-semibold uppercase">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-sm font-bold uppercase text-white lg:hidden">
               {user?.fullName?.charAt(0)}
-            </div>
+            </span>
           </div>
         </header>
 
-        <main className="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-6 sm:px-6 lg:py-8">
           <Outlet />
         </main>
-
-        {/* Mobile bottom nav */}
-        <nav className="md:hidden sticky bottom-0 bg-ledger-950 border-t border-ledger-800 flex items-center justify-around py-2">
-          <NavLink to="/" end className={({isActive}) => `p-2.5 rounded-xl ${isActive ? 'text-seal-light' : 'text-ledger-300'}`}><LayoutDashboard size={20}/></NavLink>
-          <NavLink to="/scan" className={({isActive}) => `p-2.5 rounded-xl ${isActive ? 'text-seal-light' : 'text-ledger-300'}`}><ScanLine size={20}/></NavLink>
-          <NavLink to="/exams" className={({isActive}) => `p-2.5 rounded-xl ${isActive ? 'text-seal-light' : 'text-ledger-300'}`}><CalendarClock size={20}/></NavLink>
-          {isAdmin && <NavLink to="/reports" className={({isActive}) => `p-2.5 rounded-xl ${isActive ? 'text-seal-light' : 'text-ledger-300'}`}><FileBarChart2 size={20}/></NavLink>}
-          <button onClick={handleLogout} className="p-2.5 rounded-xl text-ledger-300"><LogOut size={20}/></button>
-        </nav>
       </div>
+      <ToastViewport />
     </div>
   );
 };

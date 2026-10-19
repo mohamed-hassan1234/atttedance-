@@ -65,15 +65,16 @@ npm install
 npm run dev                 # starts app on http://localhost:5173
 ```
 
-### Local HTTPS Dev Setup (phone QR camera testing)
+### Local HTTPS Dev Setup (phone camera testing)
 
-The QR scanner uses the rear camera for live scanning. Live browser camera
-access (`getUserMedia`) only works from a secure context: `https://...` or
-`localhost`. Opening the app from a phone as `http://<your-lan-ip>:5173` will
-block live camera access (Chrome and Safari both enforce this) before the app
-code can start the stream — this is a browser platform rule, not an app bug.
+The attendance scanner uses the rear camera to read a Student ID card with
+on-device OCR. Live browser camera access (`getUserMedia`) only works from a
+secure context: `https://...` or `localhost`. Opening the app from a phone as
+`http://<your-lan-ip>:5173` will block live camera access (Chrome and Safari
+both enforce this) before the app code can start the stream — this is a
+browser platform rule, not an app bug.
 
-**This is on by default** — `frontend/vite.config.js` uses
+**Off by default.** The app runs on plain `http://localhost:5173` for everyone, and the laptop webcam works there because browsers treat `localhost` as secure. Only for phone testing, set `VITE_HTTPS=true` in `frontend/.env`; then `frontend/vite.config.js` uses
 [`vite-plugin-mkcert`](https://github.com/liuweiGL/vite-plugin-mkcert), which
 on every `npm run dev`:
 
@@ -109,11 +110,11 @@ same CA root once:
 4. Open `https://<your-laptop-lan-ip>:5173` on the phone — padlock, no
    warning, live camera works.
 
-If you'd rather skip HTTPS entirely for a quick local test, set
-`VITE_HTTPS=false` in `frontend/.env` and use the plain `http://` URL — the
-scanner falls back to a **Camera Scan (photo)** button (opens the phone's
-native camera app, takes one photo, decodes the QR from it) since that path
-doesn't need a secure context. Live continuous scanning still requires HTTPS.
+Without `VITE_HTTPS=true`, a phone opening the plain `http://` LAN URL — the
+scanner falls back to an **"Upload / take a photo of the ID card"** button
+(opens the phone's native camera app, takes one photo, runs OCR on it) since
+that path doesn't need a secure context. Live continuous scanning still
+requires HTTPS.
 
 ### 3. Log in
 

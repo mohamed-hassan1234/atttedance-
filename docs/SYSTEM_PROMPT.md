@@ -214,26 +214,47 @@ sync — the client never marks something "Eligible" on its own authority.
 
 ## 7. Design system (frontend visual language)
 
-The UI's visual identity is an **"exam ledger / official seal"** aesthetic —
-distinct from generic SaaS dashboards, appropriate for an academic
-verification tool.
+The UI's visual identity is **Hormuud University's own brand** (primary green
+`#138653`, deep green `#087443`, brand blue `#278FC5`, light background
+`#F5F8FA`) layered on top of the original **"exam ledger / official seal"**
+structural palette, which is still used for dark surfaces (sidebar, auth
+screen) and neutral chrome.
 
-- **Color tokens** (see `frontend/tailwind.config.js`, `ledger.*` and
-  `seal.*`): deep navy/ink (`ledger-950` `#0B1220` → `ledger-50` `#F7F8FB`)
-  as the structural palette, with a muted gold **seal** accent
-  (`#B8862E`) used sparingly for brand marks and admin badges. Status colors
-  are semantic and match the original documentation's own spec: `eligible`
-  green, `ineligible` red, `pending` amber.
-- **Typography**: `Newsreader` (serif, `font-display`) for headings/brand —
-  evokes an official academic register/ledger — paired with `Inter`
-  (`font-body`) for UI text and `JetBrains Mono` (`font-mono`) for Student IDs
-  and timestamps, reinforcing the "record-keeping" feel.
+- **Color tokens** (see `frontend/tailwind.config.js`): `ledger.*` (deep
+  navy/ink, `ledger-950` `#0B1220` → `ledger-50` `#F7F8FB`) remains the
+  structural palette for dark surfaces and neutral text/borders. `seal.*`
+  (muted gold, `#B8862E`) is the older accent, still present but superseded
+  by `brand.*` (Hormuud green/blue, see above) for CTAs, focus rings, active
+  nav state, and the brand mark. Status colors stay semantic: `eligible`
+  (now Hormuud primary green `#138653`), `ineligible` red, `pending` amber —
+  preserve these three for any new UI, since they map directly to FR-15
+  ("display attendance status... present, absent, pending sync").
+- **Brand mark**: `components/HormuudLogo.jsx`, used in `AppLayout.jsx`'s
+  sidebar and `Login.jsx`. It renders the real official crest, bundled as a
+  Vite asset import from `frontend/src/assets/hormuud-logo.jpeg`, inside a
+  small white rounded "chip" (the source JPEG has a solid white background
+  and no transparency, so the chip is what makes it read correctly on the
+  dark sidebar/login panel instead of sitting in a harsh white rectangle —
+  it's visually a no-op on light surfaces). `object-fit: contain` preserves
+  the crest's real (taller-than-wide) proportions. To replace the asset,
+  swap that one file and the change propagates everywhere the component is
+  used.
+- **Shared UI primitives** (used across every Admin CRUD screen):
+  `context/ToastContext.jsx` + `components/ToastViewport.jsx` (toast
+  notifications — call `useToast().success/error/info(message)` from any
+  page; the viewport is mounted once in `AppLayout.jsx`),
+  `components/ConfirmDialog.jsx` (styled confirmation in place of
+  `window.confirm()`, built on `Modal`), `components/TableSkeleton.jsx`
+  (pulsing placeholder rows for a table body while its data is loading).
+- **Typography**: `Inter` for both `font-display` (headings/brand) and
+  `font-body` (UI text), per Hormuud's brand guide — the earlier serif
+  `Newsreader` display face was replaced. `JetBrains Mono` (`font-mono`) is
+  still used for Student IDs and timestamps.
 - **Signature element**: `components/EligibilityStamp.jsx` — a circular,
   double-bordered "ink stamp" badge that animates onto the screen
-  (`stamp-in` keyframe in `index.css`) the instant a scan resolves. It is a
-  deliberate metaphor for the physical attendance-sheet stamp/signature this
-  system digitizes. Reused at small size in tables/badges and large size on
-  the Scan screen.
+  (`stamp-in` keyframe in `index.css`) the instant a scan resolves. Preserved
+  as-is; it is a deliberate metaphor for the physical attendance-sheet
+  stamp/signature this system digitizes, independent of the brand refresh.
 - **Responsiveness**: sidebar navigation collapses to a fixed bottom nav bar
   below the `md` breakpoint (see `AppLayout.jsx`); all tables scroll
   horizontally on narrow viewports; forms in `Modal.jsx` stack to a single
@@ -241,11 +262,9 @@ verification tool.
 - **Motion**: kept restrained — a stamp animation on eligibility results and
   a subtle fade-up on cards/lists; `prefers-reduced-motion` disables both.
 
-If asked to redesign or restyle, preserve the semantic status colors
-(green/red/amber) since they map directly to functional requirements FR-15 in
-the original spec ("display attendance status... present, absent, pending
-sync"), and preserve the stamp motif as the app's signature element unless
-explicitly asked to replace it.
+If asked to redesign or restyle further, preserve the semantic status colors
+and the stamp motif as above, and prefer extending `brand.*` tokens over
+reintroducing `seal.*` for new UI.
 
 ## 8. Full API reference
 
@@ -362,11 +381,68 @@ VITE_API_BASE_URL=http://localhost:5000/api
   API endpoint so the frontend's existing error-handling patterns keep
   working without special-casing.
 
-## 13. QR attendance scanning
+## 13. Attendance scanning: OCR (primary) and legacy QR/barcode
 
-- Student QR codes contain `{"type":"student_verification","token":"<64-hex>"}` — an opaque, revocable token, **not** the Student ID. `backend/src/utils/qrPayload.js` (`extractQrToken`) is the single server-side parser; `frontend/src/utils/parseStudentQr.js` mirrors it for client-side rejection and offline queueing.
-- `POST /api/qr/scan` (invigilator only) accepts `{ qrData, examId }`. With `examId` it resolves the token → student, checks the invigilator is assigned to the exam, and records attendance via `services/attendanceService.processAttendanceAttempt` (the same function used by manual entry and `/attendance/sync`). Without `examId` it is the legacy verify-only call.
-- Responses: 200 + `attendanceStatus: 'Eligible' | 'Not Eligible'` (both are recorded), 409 duplicate, 403 not assigned, 404/410 unknown/deactivated QR, 400 invalid payload.
-- Offline QR scans are queued (`qrToken` + `examId` + `clientId`) in the existing localStorage queue and revalidated by `/attendance/sync`.
-- Frontend: `components/QrAttendanceScanner.jsx` (flow/state machine), `components/QrScanner.jsx` (camera UI), `services/cameraSession.js` (camera lifecycle), `services/scanCoordinator.js` (scan lock).
-- Tests: `npm test` in `backend/` and `frontend/` (Node's built-in test runner).
+The primary scanning method on `pages/ScanAttendance.jsx` is now **camera OCR
+of the printed Student ID** on a physical Hormuud University ID card (e.g.
+`HU00004698`), not QR/barcode decoding. Both methods end at the exact same
+backend call, so eligibility/duplicate/authorization logic never forked:
+
+```
+Camera -> OCR recognition -> Student ID extraction/validation -> POST /api/qr/scan -> server-side eligibility -> DB -> result
+```
+
+- **`POST /api/qr/scan`** (invigilator only, unchanged) accepts either
+  `{ qrData, examId }` or, just as validly, `{ studentId, examId }` directly
+  — `qrController.scanStudentQr` calls `extractStudentId(req.body.qrData ||
+  req.body.studentId)` (`backend/src/utils/qrPayload.js`). This is why the
+  OCR path required **zero backend changes**: it POSTs the recognized
+  Student ID straight into the same field manual entry already used. With
+  `examId` it resolves the ID → student, checks the invigilator is assigned
+  to the exam, and records attendance via
+  `services/attendanceService.processAttendanceAttempt` (the same function
+  used by manual entry and `/attendance/sync`). Without `examId` it is the
+  legacy verify-only call. Responses: 200 + `attendanceStatus: 'Eligible' |
+  'Not Eligible'` (both are recorded), 409 duplicate, 403 not assigned,
+  404 unknown student, 400 invalid payload.
+- **Student ID format** (used by both OCR and QR/manual parsing): 2-4
+  uppercase letters then 3-8 digits, e.g. `HU2001`, `HU00004698` — defined
+  once in `frontend/src/utils/studentIdParser.js` (`STUDENT_ID_PATTERN`),
+  which `frontend/src/utils/parseStudentId.js` imports from so the two
+  parsers can never drift onto different formats. The backend's own copy is
+  `backend/src/utils/qrPayload.js` (`STUDENT_ID_PATTERN`) — keep these two in
+  sync if the format ever changes.
+- **OCR flow** (`frontend/src/components/OcrAttendanceScanner.jsx`,
+  `OcrCameraView.jsx`, `services/ocrRecognitionService.js`,
+  `services/ocrCameraSession.js`, `utils/studentIdParser.js`,
+  `utils/imagePreprocess.js`): the camera (rear-facing by default) auto-
+  captures the guide-frame region roughly every 1.8s, plus a manual "Capture
+  / Recognize now" button; each capture is cropped/grayscaled/thresholded
+  (`imagePreprocess.captureIdRegion`), run through a local Tesseract.js
+  worker (`ocrRecognitionService.recognizeImage` — recognition itself always
+  runs in-browser; no card image is sent to an external OCR service), then
+  parsed by `studentIdParser.parseOcrText`. A single high-confidence match is
+  submitted automatically (debounced via `scanCoordinator`, same lock the
+  legacy QR flow uses, so a card sitting in frame across several auto-capture
+  ticks is never submitted twice); a low-confidence or ambiguous (multiple
+  plausible IDs) result instead shows an editable confirmation step — the
+  invigilator confirms or corrects the ID before anything is submitted. A
+  recognized ID is always just a lookup key: the server still does every
+  eligibility/duplicate/authorization check from scratch.
+- **Legacy QR/barcode** (`components/QrAttendanceScanner.jsx`,
+  `components/QrScanner.jsx`, `services/cameraSession.js`,
+  `services/scanCoordinator.js`) is no longer wired into
+  `ScanAttendance.jsx` but is kept in the codebase, tested, and fully
+  functional — any ID card still carrying an old QR/barcode code (or a
+  legacy opaque `{"type":"student_verification","token":"..."}` payload,
+  still parsed by `qrPayload.js`'s `extractQrToken` for previously-queued
+  offline scans) keeps working if re-wired into a screen.
+- Offline scans (OCR or legacy QR) are queued by `studentId` (+ `examId` +
+  `clientId`) in the existing localStorage queue (`services/offlineQueue.js`)
+  and revalidated server-side by `/attendance/sync` — eligibility is never
+  trusted from the client, online or offline.
+- `components/AttendanceResultCard.jsx` is the shared result UI for both
+  scanning flows (green/red/amber + icon + text, never color alone).
+- Tests: `npm test` in `backend/` and `frontend/` (Node's built-in test
+  runner). `frontend/test/studentIdParser.test.js` covers OCR extraction/
+  correction; `frontend/test/scanner.test.js` covers the legacy QR path.
